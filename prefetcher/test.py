@@ -1,0 +1,235 @@
+import argparse
+from pathlib import Path
+import time
+
+import m5
+
+from gem5.utils.requires import requires
+from gem5.utils.override import overrides
+from gem5.components.boards.arm_board import ArmBoard
+from gem5.components.memory.dram_interfaces.ddr4 import DDR4_2400_8x8
+from gem5.components.memory.memory import ChanneledMemory
+from gem5.components.processors.simple_processor import SimpleProcessor
+from gem5.components.processors.cpu_types import CPUTypes
+from gem5.isas import ISA
+from gem5.coherence_protocol import CoherenceProtocol
+from gem5.simulate.simulator import Simulator
+from gem5.simulate.exit_event import ExitEvent
+from gem5.resources.workload import Workload
+from gem5.resources.resource import (
+    Resource,
+    CustomResource,
+    CustomDiskImageResource,
+    obtain_resource,
+)
+from gem5.components.processors.simple_switchable_processor import (
+    SimpleSwitchableProcessor,
+)
+
+from MeshCache.MeshCache import MeshCache
+from MeshCache.MeshCacheWithPickleDevice import MeshCacheWithPickleDevice
+from MeshCache.components.PrebuiltMesh import PrebuiltMesh
+
+from m5.objects import PickleDevice, TrafficSnooper, AddrRange, ArmMMU
+
+from m5.objects import (
+    ArmDecoder,
+    ArmDefaultRelease,
+    ArmISA,
+    VExpress_GEM5_V1,
+    VExpress_GEM5_Foundation
+)
+
+mesh_descriptor = PrebuiltMesh.getMesh7("Mesh7")
+
+parser = argparse.ArgumentParser()
+args = parser.parse_args()
+num_cores = mesh_descriptor.get_num_core_tiles()
+
+fast_forward_cpu_type = CPUTypes.KVM
+
+mesh_cache = MeshCacheWithPickleDevice(
+    l1i_size="32KiB",
+    l1i_assoc=8,
+    l1d_size="48KiB",
+    l1d_assoc=12,
+    l2_size="1MiB",
+    l2_assoc=16,
+    l3_size="32MiB",
+    l3_assoc=16,
+    device_cache_size="32KiB",
+    device_cache_assoc=8,
+    num_core_complexes=1,
+    is_fullsystem=True,
+    mesh_descriptor=mesh_descriptor,
+    data_prefetcher_class=None
+)
+
+# Main memory
+memory = ChanneledMemory(
+    dram_interface_class=DDR4_2400_8x8,
+    num_channels=mesh_descriptor.get_num_mem_tiles()-1,
+    interleaving_size=64,
+    size="1GiB",
+)
+
+processor = SimpleSwitchableProcessor(
+    starting_core_type=CPUTypes.KVM,
+    switch_core_type=CPUTypes.TIMING,
+    isa=ISA.ARM,
+    num_cores=mesh_descriptor.get_num_core_tiles()
+)
+
+# Here we tell the KVM CPU (the starting CPU) not to use perf.
+if fast_forward_cpu_type == CPUTypes.KVM:
+    for proc in processor.get_cores():
+        proc.core.usePerf = False
+
+class PickleArmBoard(ArmBoard):
+    def __init__(self, clk_freq, processor, memory, cache_hierarchy, release, platform):
+        super().__init__(
+            clk_freq = clk_freq,
+            processor = processor,
+            memory = memory,
+            cache_hierarchy = cache_hierarchy, 
+            release = release,
+            platform = platform,
+        )
+
+    @overrides(ArmBoard)
+    def get_default_kernel_args(self):
+        # The default kernel string is taken from the devices.py file.
+        return [
+            "console=ttyAMA0",
+            "lpj=19988480",
+            "norandmaps",
+            "root=/dev/vda1",
+            "disk_device=/dev/vda1",
+            "rw",
+            f"mem={self.get_memory().get_size()}",
+            "init=/home/ubuntu/gem5-init.sh",
+        ]
+
+    @overrides(ArmBoard)
+    def _pre_instantiate(self, full_system):
+        num_PD_tiles = self.cache_hierarchy.get_mesh_descriptor().get_num_pickle_device_tiles()
+        all_cores = [core.core for core in self.processor.get_cores()]
+        self.traffic_snoopers = [
+            TrafficSnooper(
+                watch_ranges = [AddrRange(0x10110000, 0x10120000)]
+            ) for i in range(num_PD_tiles*len(all_cores))
+        ]
+        self.pickle_device_mmus = [
+            ArmMMU(release_se=ArmDefaultRelease()) for _ in range(num_PD_tiles)
+        ]
+        self.pickle_device_isas = [
+            ArmISA() for _ in range(num_PD_tiles)
+        ]
+        self.pickle_device_decoders = [
+            ArmDecoder(isa=self.pickle_device_isas[i])
+            for i in range(num_PD_tiles)
+        ]
+        all_cores2 = [core.core for core in self.processor._all_cores() if core not in self.processor.get_cores()]
+        self.pickle_devices = [
+            PickleDevice(
+                mmu = self.pickle_device_mmus[i],
+                #mmu = all_cores2[0].mmu,
+                isa = self.pickle_device_isas[i],
+                decoder = self.pickle_device_decoders[i],
+                device_id = i,
+                associated_cores = all_cores2[i*len(all_cores2):(i+1)*len(all_cores2)],
+                num_cores = len(all_cores),
+                core_to_pickle_latency_in_ticks = 250,
+                ticks_per_cycle = 250,
+                uncacheable_forwarders = self.traffic_snoopers[i*len(all_cores):(i+1)*len(all_cores)],
+            ) for i in range(num_PD_tiles)
+        ]
+        self.cache_hierarchy.set_pickle_devices(self.pickle_devices)
+        self.cache_hierarchy.set_traffic_uncacheable_forwarders(self.traffic_snoopers)
+        #for proc in processor.get_cores():
+        #    proc.core.isa[0].MSR802Val = MSR802Val
+        #    proc.core.isa[0].MSR803Val = MSR803Val
+        super()._pre_instantiate()
+        #self._connect_things()
+
+    @overrides(ArmBoard)
+    def _post_instantiate(self):
+        super()._post_instantiate()
+        self.cache_hierarchy.post_instantiate()
+
+board = PickleArmBoard(
+    clk_freq="4GHz",
+    processor=processor,
+    memory=memory,
+    cache_hierarchy=mesh_cache,
+    release=ArmDefaultRelease.for_kvm(),
+    platform=VExpress_GEM5_V1(),
+)
+
+command = f"/home/ubuntu/resource_temp/software/application/prefetcher/bfs2.hw.pdev.ser -n 2 -f /home/ubuntu/graphs/synth_5.el"
+
+board.set_kernel_disk_workload(
+    kernel=CustomResource("/workdir/ARTIFACTS/linux-6.6.71/vmlinux"),
+    #kernel=obtain_resource("arm64-linux-kernel-5.15.36"),
+    disk_image=CustomDiskImageResource("/workdir/ARTIFACTS/arm64.img"),
+    #disk_image=obtain_resource("arm-ubuntu-24.04-img"),
+    bootloader=obtain_resource("arm64-bootloader", resource_version="1.0.0"),
+    readfile_contents=command,
+)
+
+def handle_exit():
+    processor.switch()
+    print("turning on devices")
+    for dev in board.pickle_devices:
+        dev.switchOn()
+    for snooper in board.traffic_snoopers:
+        snooper.switchOn()
+    yield False
+    yield True
+
+def handle_work_begin_with_pickle_device():
+    print("Workbegin")
+    yield True # save checkpoint
+
+def handle_work_begin_without_pickle_device():
+    print("Workbegin")
+    yield True # save checkpoint
+
+def handle_work_end():
+    print("Should not be here")
+    assert(False)
+    yield True
+
+handle_work_begin = handle_work_begin_with_pickle_device
+
+simulator = Simulator(
+    board=board,
+    on_exit_event={
+        ExitEvent.EXIT: handle_exit(),
+        ExitEvent.WORKBEGIN: handle_work_begin(),
+        ExitEvent.WORKEND: handle_work_end(),
+    },
+)
+
+# We maintain the wall clock time.
+
+globalStart = time.time()
+
+print("Running the simulation")
+
+# We start the simulation.
+simulator.run()
+
+checkpoint_name = "test"
+#simulator.save_checkpoint(Path(f"/workdir/ARTIFACTS/checkpoints/{checkpoint_name}"))
+
+print(
+    f"Ran a total of {simulator.get_current_tick() / 1e12} simulated seconds"
+)
+
+print(
+    "Total wallclock time: %.2fs, %.2f min"
+    % (time.time() - globalStart, (time.time() - globalStart) / 60)
+)
+
+print("Exit cause: ", simulator.get_last_exit_event_cause())
