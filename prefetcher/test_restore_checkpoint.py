@@ -268,12 +268,27 @@ board.set_kernel_disk_workload(
 )
 
 
-def handle_exit():
+def handle_exit_with_pdev():
     print("[exit 2] ITER 1: *** ROI end ***")
     m5.stats.dump()
     print("   -> turning on devices")
     for dev in board.pickle_devices:
         dev.switchOn()
+    for snooper in board.traffic_snoopers:
+        snooper.switchOn()
+    yield False
+
+    print("[exit 3] ITER 2: *** ROI START ***")
+    m5.stats.dump()
+    yield False
+
+    print("[exit 4] ITER 2: *** ROI end ***")
+    m5.stats.dump()
+    yield True
+
+def handle_exit_without_pdev():
+    print("[exit 2] ITER 1: *** ROI end ***")
+    m5.stats.dump()
     for snooper in board.traffic_snoopers:
         snooper.switchOn()
     yield False
@@ -315,6 +330,10 @@ simulator = Simulator(
         ExitEvent.WORKBEGIN: handle_work_begin(),
         ExitEvent.WORKEND: handle_work_end(),
     },
+)
+
+handle_exit = (
+    handle_exit_with_pdev if enable_pdev else handle_exit_without_pdev
 )
 
 globalStart = time.time()
