@@ -54,14 +54,20 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--graph_name", type=str, required=True)
 parser.add_argument("--enable_pdev", type=str, required=True, choices=["True", "False"])
 parser.add_argument("--prefetch_distance", type=int, required=True)
+parser.add_argument("--private_cache_prefetcher", type=str, required=True, choices=[
+    "none", "stride", "imp", "ampm", "sms", "bop", "multiv1"
+])
 args = parser.parse_args()
 
 graph_name = args.graph_name
 enable_pdev = args.enable_pdev == "True"
 prefetch_distance = args.prefetch_distance
+private_cache_prefetcher = args.private_cache_prefetcher
+
 print(f"Graph name: {graph_name}")
 print(f"Enable Pickle Device: {enable_pdev}")
 print(f"Prefetch Distance: {prefetch_distance}")
+
 # from _m5.core import setOutputDir
 # setOutputDir(f"/workdir/ARTIFACTS/results/bfs-pickle-{graph_name}-distance-32")
 
@@ -83,7 +89,7 @@ mesh_cache = MeshCacheWithPickleDevice(
     num_core_complexes=1,
     is_fullsystem=True,
     mesh_descriptor=mesh_descriptor,
-    data_prefetcher_class=None,
+    data_prefetcher_class=private_cache_prefetcher,
 )
 
 # Main memory
@@ -260,7 +266,7 @@ command = f"/home/ubuntu/resource_temp/software/application/prefetcher/bfs2.hw.p
 checkpoint_name = graph_name
 checkpoint_path = Path(f"/workdir/ARTIFACTS/checkpoints/{checkpoint_name}")
 board.set_kernel_disk_workload(
-    kernel=CustomResource("/workdir/ARTIFACTS/linux-6.6.71/vmlinux"),
+    kernel=CustomResource("/workdir/ARTIFACTS/vmlinux-6.6.71"),
     disk_image=CustomDiskImageResource("/workdir/ARTIFACTS/arm64.img.v2"),
     bootloader=obtain_resource("arm64-bootloader", resource_version="1.0.0"),
     checkpoint=checkpoint_path,
@@ -321,6 +327,9 @@ def handle_work_end():
     assert False
     yield True
 
+handle_exit = (
+    handle_exit_with_pdev if enable_pdev else handle_exit_without_pdev
+)
 
 simulator = Simulator(
     board=board,
@@ -330,10 +339,6 @@ simulator = Simulator(
         ExitEvent.WORKBEGIN: handle_work_begin(),
         ExitEvent.WORKEND: handle_work_end(),
     },
-)
-
-handle_exit = (
-    handle_exit_with_pdev if enable_pdev else handle_exit_without_pdev
 )
 
 globalStart = time.time()
