@@ -53,10 +53,15 @@ mesh_descriptor = PrebuiltMesh.getMesh8("Mesh8")
 parser = argparse.ArgumentParser()
 parser.add_argument("--graph_name", type=str, required=True)
 parser.add_argument("--enable_pdev", type=str, required=True, choices=["True", "False"])
+parser.add_argument("--prefetch_distance", type=int, required=True)
 args = parser.parse_args()
 
 graph_name = args.graph_name
 enable_pdev = args.enable_pdev == "True"
+prefetch_distance = args.prefetch_distance
+print(f"Graph name: {graph_name}")
+print(f"Enable Pickle Device: {enable_pdev}")
+print(f"Prefetch Distance: {prefetch_distance}")
 # from _m5.core import setOutputDir
 # setOutputDir(f"/workdir/ARTIFACTS/results/bfs-pickle-{graph_name}-distance-32")
 
@@ -89,17 +94,7 @@ memory = ChanneledMemory(
     size="16GiB",
 )
 
-processor = SimpleSwitchableProcessor(
-    starting_core_type=CPUTypes.KVM,
-    switch_core_type=CPUTypes.O3,
-    isa=ISA.ARM,
-    num_cores=mesh_descriptor.get_num_core_tiles(),
-)
-
-# Here we tell the KVM CPU (the starting CPU) not to use perf.
-if fast_forward_cpu_type == CPUTypes.KVM:
-    for proc in processor.get_cores():
-        proc.core.usePerf = False
+processor = SimpleProcessor(cpu_type=CPUTypes.TIMING, isa=ISA.ARM, num_cores=num_cores)
 
 
 class PickleArmBoard(ArmBoard):
@@ -132,19 +127,11 @@ class PickleArmBoard(ArmBoard):
         num_PD_tiles = (
             self.cache_hierarchy.get_mesh_descriptor().get_num_pickle_device_tiles()
         )
-        fast_forwarding_cores = [
-            core.core
-            for core in self.processor._all_cores()
-            if core in self.processor.get_cores()
-        ]
-        detailed_cores = [
-            core.core
-            for core in self.processor._all_cores()
-            if core not in self.processor.get_cores()
-        ]
-        all_cores = fast_forwarding_cores + detailed_cores
+        all_cores = [core.core for core in self.processor.get_cores()]
         self.traffic_snoopers = [
-            TrafficSnooper(watch_ranges=[AddrRange(0x10110000, 0x10120000)])
+            TrafficSnooper(
+                watch_ranges=[AddrRange(0x10110000, 0x10120000)], snoop_on=False
+            )
             for i in range(num_PD_tiles * len(all_cores))
         ]
         self.pickle_device_mmus = [
@@ -158,7 +145,8 @@ class PickleArmBoard(ArmBoard):
             PickleDeviceRequestManager() for i in range(num_PD_tiles)
         ]
         self.pickle_device_prefetchers = [
-            PrefetcherInterface() for i in range(num_PD_tiles)
+            PrefetcherInterface(prefetch_distance=prefetch_distance)
+            for i in range(num_PD_tiles)
         ]
         self.pickle_devices = [
             PickleDevice(
@@ -166,7 +154,7 @@ class PickleArmBoard(ArmBoard):
                 isa=self.pickle_device_isas[i],
                 decoder=self.pickle_device_decoders[i],
                 device_id=i,
-                associated_cores=detailed_cores[
+                associated_cores=all_cores[
                     i * len(all_cores) : (i + 1) * len(all_cores)
                 ],
                 num_cores=len(all_cores),
@@ -177,16 +165,13 @@ class PickleArmBoard(ArmBoard):
                 uncacheable_forwarders=self.traffic_snoopers[
                     i * len(all_cores) : (i + 1) * len(all_cores)
                 ],
+                is_on=False,
             )
             for i in range(num_PD_tiles)
         ]
         self.cache_hierarchy.set_pickle_devices(self.pickle_devices)
         self.cache_hierarchy.set_traffic_uncacheable_forwarders(self.traffic_snoopers)
-        # for proc in processor.get_cores():
-        #    proc.core.isa[0].MSR802Val = MSR802Val
-        #    proc.core.isa[0].MSR803Val = MSR803Val
         super()._pre_instantiate()
-        # self._connect_things()
 
     @overrides(ArmBoard)
     def _post_instantiate(self):
@@ -204,79 +189,108 @@ board = PickleArmBoard(
 )
 
 graph_path_map = {
-    "higgs": "/home/ubuntu/graphs/higgs.el",
-    "livejournal": "/home/ubuntu/graphs/livejournal.el",
-    "orkut": "/home/ubuntu/graphs/orkut.el",
-    "roadNetCA": "/home/ubuntu/graphs/roadNetCA.el",
-    "twitch": "/home/ubuntu/graphs/twitch.el",
-    "wiki_topcats": "/home/ubuntu/graphs/wiki_topcats.el",
-    "youtube": "/home/ubuntu/graphs/youtube.el",
-    "test5": "/home/ubuntu/graphs/synth_5.el",
-    "test10": "/home/ubuntu/graphs/synth_10.el",
-    # "amazon": "/home/ubuntu/graphs/amazon.el",
-    # "dbpedia": "/home/ubuntu/graphs/dbpedia.el",
-    # "flickr": "/home/ubuntu/graphs/flickr.el",
-    # "friendster": "/home/ubuntu/graphs/friendster.el",
-    # "github": "/home/ubuntu/graphs/github.el",
-    # "google": "/home/ubuntu/graphs/google.el",
-    # "pokec": "/home/ubuntu/graphs/pokec.el",
-    # "patents": "/home/ubuntu/graphs/patents.el",
-    # "reddit": "/home/ubuntu/graphs/reddit.el",
-    # "road": "/home/ubuntu/graphs/road.el",
-    # "soclive": "/home/ubuntu/graphs/soclive.el",
-    # "twitter": "/home/ubuntu/graphs/twitter.el",
-    # "webbase": "/home/ubuntu/graphs/webbase.el",
-    # "wiki": "/home/ubuntu/graphs/wiki.el",
+    "amazon": (
+        "/home/ubuntu/graphs/amazon.el",
+        "undirected",
+        "109638",
+    ),  # 334863 / 1851736
+    "gplus": (
+        "/home/ubuntu/graphs/gplus_newid.el",
+        "directed",
+        "21508",
+    ),  # 105630 / 13648443
+    "higgs": ("/home/ubuntu/graphs/higgs.el", "directed", "91265"),  # 360493 / 14120914
+    "livejournal": (
+        "/home/ubuntu/graphs/livejournal.el",
+        "directed",
+        "3",
+    ),  # 3984967 / 34235868
+    "orkut": (
+        "/home/ubuntu/graphs/orkut.el",
+        "undirected",
+        "614125",
+    ),  # 3072441 / 234370158
+    "pokec": (
+        "/home/ubuntu/graphs/pokec.el",
+        "directed",
+        "326348",
+    ),  # 1504295 / 30159128
+    "roadNetCA": (
+        "/home/ubuntu/graphs/roadNetCA.el",
+        "undirected",
+        "393999",
+    ),  # 1957027 / 5520774
+    "twitch": (
+        "/home/ubuntu/graphs/twitch.el",
+        "undirected",
+        "33600",
+    ),  # 168114 / 13595114
+    "youtube": (
+        "/home/ubuntu/graphs/youtube.el",
+        "undirected",
+        "231414",
+    ),  # 1134890 / 5975240
+    "web_berkstan": (
+        "/home/ubuntu/graphs/web_berkstan.el",
+        "directed",
+        "1",
+    ),  # 459831 / 5310647
+    "web_google": (
+        "/home/ubuntu/graphs/web_google.el",
+        "directed",
+        "1",
+    ),  # 600493 / 3874195
+    "wiki_talk": (
+        "/home/ubuntu/graphs/wiki_talk.el",
+        "directed",
+        "2",
+    ),  # 2354316 / 4949282
+    "wiki_topcats": (
+        "/home/ubuntu/graphs/wiki_topcats.el",
+        "directed",
+        "358064",
+    ),  # 1791489 / 28508141
+    "test5": ("/home/ubuntu/graphs/synth_5.el", "undirected"),
+    "test10": ("/home/ubuntu/graphs/synth_10.el", "undirected"),
 }
-is_directed_graph = graph_name in ["higgs", "livejournal", "wiki_topcats"]
-graph_path = graph_path_map[graph_name]
+graph_path, direction, starting_node = graph_path_map[graph_name]
+is_directed_graph = direction == "directed"
 symmetric_flag = "-s" if not is_directed_graph else ""
-binary_name = "bfs2.hw.pdev.m5" if enable_pdev else "bfs2.hw.m5"
-command = f"/home/ubuntu/resource_temp/software/application/prefetcher/bfs2.hw.pdev.m5 -n 2 -f {graph_path} {symmetric_flag}"
-
+command = f"/home/ubuntu/resource_temp/software/application/prefetcher/bfs2.hw.pdev.m5 -n 2 -f {graph_path} {symmetric_flag} -r {starting_node}"
+checkpoint_name = graph_name
+checkpoint_path = Path(f"/workdir/ARTIFACTS/checkpoints/{checkpoint_name}")
 board.set_kernel_disk_workload(
     kernel=CustomResource("/workdir/ARTIFACTS/linux-6.6.71/vmlinux"),
-    disk_image=CustomDiskImageResource("/workdir/ARTIFACTS/arm64.img"),
+    disk_image=CustomDiskImageResource("/workdir/ARTIFACTS/arm64.img.v2"),
     bootloader=obtain_resource("arm64-bootloader", resource_version="1.0.0"),
+    checkpoint=checkpoint_path,
     readfile_contents=command,
 )
 
 
-def handle_exit_with_pdev():
-    print("switching cpu")
-    processor.switch()
-    print("turning on devices")
+def handle_exit():
+    print("[exit 2] ITER 1: *** ROI end ***")
+    m5.stats.dump()
+    print("   -> turning on devices")
     for dev in board.pickle_devices:
         dev.switchOn()
     for snooper in board.traffic_snoopers:
         snooper.switchOn()
-    print("ROI begin")
+    yield False
+
+    print("[exit 3] ITER 2: *** ROI START ***")
     m5.stats.dump()
     yield False
-    print("ROI end")
+
+    print("[exit 4] ITER 2: *** ROI end ***")
     m5.stats.dump()
-    yield False
-    print("ROI begin")
-    m5.stats.dump()
-    yield False
-    print("ROI end")
     yield True
 
 
-def handle_exit_without_pdev():
-    print("switching cpu")
-    processor.switch()
-    print("ROI begin")
+def handle_max_tick():
+    print("[exit 1] ITER 1: *** ROI start ***")
     m5.stats.dump()
     yield False
-    print("ROI end")
-    m5.stats.dump()
-    yield False
-    print("ROI begin")
-    m5.stats.dump()
-    yield False
-    print("ROI end")
-    yield True
 
 
 def handle_work_begin():
@@ -293,29 +307,23 @@ def handle_work_end():
     yield True
 
 
-handle_exit = handle_exit_with_pdev if enable_pdev else handle_exit_without_pdev
-
 simulator = Simulator(
     board=board,
     on_exit_event={
         ExitEvent.EXIT: handle_exit(),
+        ExitEvent.MAX_TICK: handle_max_tick(),
         ExitEvent.WORKBEGIN: handle_work_begin(),
         ExitEvent.WORKEND: handle_work_end(),
     },
 )
-# simulator.override_outdir(output_path)
-
-# We maintain the wall clock time.
 
 globalStart = time.time()
 
 print("Running the simulation")
 
 # We start the simulation.
-simulator.run()
-
-checkpoint_name = "test"
-# simulator.save_checkpoint(Path(f"/workdir/ARTIFACTS/checkpoints/{checkpoint_name}"))
+simulator.run(1)
+simulator.run(10 ** 18)
 
 print(f"Ran a total of {simulator.get_current_tick() / 1e12} simulated seconds")
 
