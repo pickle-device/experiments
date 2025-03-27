@@ -100,7 +100,7 @@ memory = ChanneledMemory(
     size="16GiB",
 )
 
-processor = SimpleProcessor(cpu_type=CPUTypes.TIMING, isa=ISA.ARM, num_cores=num_cores)
+processor = SimpleProcessor(cpu_type=CPUTypes.O3, isa=ISA.ARM, num_cores=num_cores)
 
 
 class PickleArmBoard(ArmBoard):
