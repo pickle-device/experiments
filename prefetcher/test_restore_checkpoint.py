@@ -256,13 +256,17 @@ graph_path_map = {
         "directed",
         "358064",
     ),  # 1791489 / 28508141
-    "test5": ("/home/ubuntu/graphs/synth_5.el", "undirected"),
-    "test10": ("/home/ubuntu/graphs/synth_10.el", "undirected"),
+    "test5": ("/home/ubuntu/graphs/synth_5.el", "undirected", None),
+    "test10": ("/home/ubuntu/graphs/synth_10.el", "undirected", None),
 }
 graph_path, direction, starting_node = graph_path_map[graph_name]
+if not starting_node:
+    starting_node_flag = ""
+else:
+    starting_node_flag = f"-r {starting_node}"
 is_directed_graph = direction == "directed"
 symmetric_flag = "-s" if not is_directed_graph else ""
-command = f"/home/ubuntu/resource_temp/software/application/prefetcher/bfs2.hw.pdev.m5 -n 2 -f {graph_path} {symmetric_flag} -r {starting_node}"
+command = f"/home/ubuntu/resource_temp/software/application/prefetcher/bfs2.hw.pdev.m5 -n 2 -f {graph_path} {symmetric_flag} {starting_node_flag}"
 checkpoint_name = graph_name
 checkpoint_path = Path(f"/workdir/ARTIFACTS/checkpoints/{checkpoint_name}")
 board.set_kernel_disk_workload(
