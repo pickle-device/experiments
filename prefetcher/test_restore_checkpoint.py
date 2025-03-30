@@ -38,6 +38,7 @@ from m5.objects import (
     ArmMMU,
     PickleDeviceRequestManager,
     PrefetcherInterface,
+    TAGE_SC_L_64KB,
 )
 
 from m5.objects import (
@@ -106,7 +107,6 @@ memory = ChanneledMemory(
 )
 
 processor = SimpleProcessor(cpu_type=CPUTypes.O3, isa=ISA.ARM, num_cores=num_cores)
-
 
 class PickleArmBoard(ArmBoard):
     def __init__(self, clk_freq, processor, memory, cache_hierarchy, release, platform):
@@ -185,6 +185,11 @@ class PickleArmBoard(ArmBoard):
         ]
         self.cache_hierarchy.set_pickle_devices(self.pickle_devices)
         self.cache_hierarchy.set_traffic_uncacheable_forwarders(self.traffic_snoopers)
+        # configure the processors
+        for core in all_cores:
+            core.branchPred = TAGE_SC_L_64KB()
+            core.branchPred.ras.numEntries = 52
+            core.numROBEntries = 448
         super()._pre_instantiate()
 
     @overrides(ArmBoard)
