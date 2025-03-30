@@ -54,15 +54,20 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--graph_name", type=str, required=True)
 parser.add_argument("--enable_pdev", type=str, required=True, choices=["True", "False"])
 parser.add_argument("--prefetch_distance", type=int, required=True)
-parser.add_argument("--private_cache_prefetcher", type=str, required=True, choices=[
-    "none", "stride", "imp", "ampm", "sms", "bop", "multiv1"
-])
+parser.add_argument("--offset_from_pf_hint", type=int, required=True)
+parser.add_argument(
+    "--private_cache_prefetcher",
+    type=str,
+    required=True,
+    choices=["none", "stride", "imp", "ampm", "sms", "bop", "multiv1"],
+)
 args = parser.parse_args()
 
 graph_name = args.graph_name
 enable_pdev = args.enable_pdev == "True"
 prefetch_distance = args.prefetch_distance
 private_cache_prefetcher = args.private_cache_prefetcher
+offset_from_pf_hint = args.offset_from_pf_hint
 
 print(f"Graph name: {graph_name}")
 print(f"Enable Pickle Device: {enable_pdev}")
@@ -151,7 +156,10 @@ class PickleArmBoard(ArmBoard):
             PickleDeviceRequestManager() for i in range(num_PD_tiles)
         ]
         self.pickle_device_prefetchers = [
-            PrefetcherInterface(prefetch_distance=prefetch_distance)
+            PrefetcherInterface(
+                prefetch_distance=prefetch_distance,
+                prefetch_distance_offset_from_software_hint=offset_from_pf_hint,
+            )
             for i in range(num_PD_tiles)
         ]
         self.pickle_devices = [
@@ -296,6 +304,7 @@ def handle_exit_with_pdev():
     m5.stats.dump()
     yield True
 
+
 def handle_exit_without_pdev():
     print("[exit 2] ITER 1: *** ROI end ***")
     m5.stats.dump()
@@ -331,9 +340,8 @@ def handle_work_end():
     assert False
     yield True
 
-handle_exit = (
-    handle_exit_with_pdev if enable_pdev else handle_exit_without_pdev
-)
+
+handle_exit = handle_exit_with_pdev if enable_pdev else handle_exit_without_pdev
 
 simulator = Simulator(
     board=board,

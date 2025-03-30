@@ -143,7 +143,11 @@ class PickleArmBoard(ArmBoard):
             PickleDeviceRequestManager() for i in range(num_PD_tiles)
         ]
         self.pickle_device_prefetchers = [
-            PrefetcherInterface() for i in range(num_PD_tiles)
+            PrefetcherInterface(
+                prefetch_distance=1,
+                prefetch_distance_offset_from_software_hint=0,
+            )
+            for i in range(num_PD_tiles)
         ]
         self.pickle_devices = [
             PickleDevice(
