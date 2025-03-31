@@ -10,6 +10,6 @@ do
     for private_cache_prefetcher in "${private_cache_prefetchers[@]}"
     do
         echo "Running $graph_name with $private_cache_prefetcher"
-        /workdir/gem5/build/ARM/gem5.opt -re --outdir=$OUTPUT_FOLDER/bfs-$graph_name-baseline-$private_cache_prefetcher --debug-flags=PickleDevicePrefetcherProgressTracker experiments/prefetcher/test_restore_checkpoint.py --graph_name=$graph_name  --enable_pdev=False --prefetch_distance=0 --offset_from_pf_hint=0 --private_cache_prefetcher=$private_cache_prefetcher &
+        /workdir/gem5/build/ARM/gem5.opt -re --outdir=$OUTPUT_FOLDER/bfs-$graph_name-pdev_distance_32_offset_16-$private_cache_prefetcher --debug-flags=PickleDevicePrefetcherProgressTracker experiments/prefetcher/test_restore_checkpoint.py --graph_name=$graph_name  --enable_pdev=True --prefetch_distance=32 --offset_from_pf_hint=16 --private_cache_prefetcher=$private_cache_prefetcher &
     done
 done
