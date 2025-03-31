@@ -39,6 +39,7 @@ from m5.objects import (
     PickleDeviceRequestManager,
     PrefetcherInterface,
     TAGE_SC_L_64KB,
+    RubyDataMovementTracker,
 )
 
 from m5.objects import (
@@ -107,6 +108,7 @@ memory = ChanneledMemory(
 )
 
 processor = SimpleProcessor(cpu_type=CPUTypes.O3, isa=ISA.ARM, num_cores=num_cores)
+
 
 class PickleArmBoard(ArmBoard):
     def __init__(self, clk_freq, processor, memory, cache_hierarchy, release, platform):
@@ -191,6 +193,32 @@ class PickleArmBoard(ArmBoard):
             core.branchPred.ras.numEntries = 52
             core.numROBEntries = 448
         super()._pre_instantiate()
+        # add the data movement stats
+        for core_tile in self.cache_hierarchy.core_tiles:
+            core_tile.l1d_cache.data_tracker = RubyDataMovementTracker(
+                controller=core_tile.l1d_cache,
+                ruby_system=self.cache_hierarchy.ruby_system,
+            )
+            core_tile.l2_cache.data_tracker = RubyDataMovementTracker(
+                controller=core_tile.l2_cache,
+                ruby_system=self.cache_hierarchy.ruby_system,
+            )
+            core_tile.l3_slice.data_tracker = RubyDataMovementTracker(
+                controller=core_tile.l3_slice,
+                ruby_system=self.cache_hierarchy.ruby_system,
+            )
+        if self.cache_hierarchy._has_l3_only_tiles:
+            for l3_only_tile in self.cache_hierarchy.l3_only_tiles:
+                l3_only_tile.l3_slice.data_tracker = RubyDataMovementTracker(
+                    controller=l3_only_tile.l3_slice,
+                    ruby_system=self.cache_hierarchy.ruby_system,
+                )
+        if num_PD_tiles > 0:
+            for pdev_tile in board.cache_hierarchy.pickle_device_component_tiles:
+                pdev_tile.controller.data_tracker = RubyDataMovementTracker(
+                    controller=pdev_tile.controller,
+                    ruby_system=self.cache_hierarchy.ruby_system,
+                )
 
     @overrides(ArmBoard)
     def _post_instantiate(self):
