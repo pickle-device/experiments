@@ -87,7 +87,7 @@ memory = ChanneledMemory(
     dram_interface_class=DDR5_8400_4x8,
     num_channels=mesh_descriptor.get_num_mem_tiles() - 1,
     interleaving_size=64,
-    size="16GiB",
+    size="4GiB",
 )
 
 processor = SimpleProcessor(cpu_type=CPUTypes.KVM, isa=ISA.ARM, num_cores=num_cores)
