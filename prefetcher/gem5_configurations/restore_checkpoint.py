@@ -57,6 +57,7 @@ parser.add_argument("--graph_name", type=str, required=True)
 parser.add_argument("--enable_pdev", type=str, required=True, choices=["True", "False"])
 parser.add_argument("--prefetch_distance", type=int, required=True)
 parser.add_argument("--offset_from_pf_hint", type=int, required=True)
+parser.add_argument("--pdev_num_tbes", type=int, required=True)
 parser.add_argument(
     "--private_cache_prefetcher",
     type=str,
@@ -70,10 +71,12 @@ enable_pdev = args.enable_pdev == "True"
 prefetch_distance = args.prefetch_distance
 private_cache_prefetcher = args.private_cache_prefetcher
 offset_from_pf_hint = args.offset_from_pf_hint
+pdev_num_tbes = args.pdev_num_tbes
 
 print(f"Graph name: {graph_name}")
 print(f"Enable Pickle Device: {enable_pdev}")
-print(f"Prefetch Distance: {prefetch_distance}")
+print(f"Prefetch Distance: {prefetch_distance}, Offset: {offset_from_pf_hint}")
+print(f"Num PDEV TBEs: {pdev_num_tbes}")
 
 # from _m5.core import setOutputDir
 # setOutputDir(f"/workdir/ARTIFACTS/results/bfs-pickle-{graph_name}-distance-32")
@@ -97,6 +100,7 @@ mesh_cache = MeshCacheWithPickleDevice(
     is_fullsystem=True,
     mesh_descriptor=mesh_descriptor,
     data_prefetcher_class=private_cache_prefetcher,
+    pdev_num_tbes=pdev_num_tbes,
 )
 
 # Main memory

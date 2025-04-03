@@ -79,6 +79,7 @@ mesh_cache = MeshCacheWithPickleDevice(
     is_fullsystem=True,
     mesh_descriptor=mesh_descriptor,
     data_prefetcher_class=None,
+    pdev_num_tbes=16,
 )
 
 # Main memory
