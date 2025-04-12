@@ -165,6 +165,7 @@ class PickleArmBoard(ArmBoard):
             PrefetcherInterface(
                 prefetch_distance=prefetch_distance,
                 prefetch_distance_offset_from_software_hint=offset_from_pf_hint,
+                num_cores=len(all_cores),
             )
             for i in range(num_PD_tiles)
         ]
