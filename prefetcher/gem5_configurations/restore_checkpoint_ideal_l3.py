@@ -106,7 +106,7 @@ mesh_cache = MeshCacheWithPickleDevice(
 # Main memory
 memory = ChanneledMemory(
     dram_interface_class=DDR5_8400_4x8,
-    num_channels=mesh_descriptor.get_num_mem_tiles() - 1,
+    num_channels=mesh_descriptor.get_num_mem_tiles(),
     interleaving_size=64,
     size="4GiB",
 )
