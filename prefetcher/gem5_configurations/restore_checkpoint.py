@@ -196,7 +196,10 @@ class PickleArmBoard(ArmBoard):
         for core in all_cores:
             core.branchPred = TAGE_SC_L_64KB()
             core.branchPred.ras.numEntries = 52
+            core.branchPred.btb.numEntries = 16384
             core.numROBEntries = 448
+            core.LQEntries = 256
+            core.SQEntries = 128
         super()._pre_instantiate()
         # add the data movement stats
         for core_tile in self.cache_hierarchy.core_tiles:
