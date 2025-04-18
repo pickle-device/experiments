@@ -200,6 +200,8 @@ class PickleArmBoard(ArmBoard):
             core.numROBEntries = 448
             core.LQEntries = 256
             core.SQEntries = 128
+            core.numIQEntries = 512
+            core.fetchQueueSize = 256
         super()._pre_instantiate()
         # add the data movement stats
         for core_tile in self.cache_hierarchy.core_tiles:
