@@ -53,8 +53,9 @@ from m5.objects import (
 mesh_descriptor = PrebuiltMesh.getMesh8("Mesh8")
 
 parser = argparse.ArgumentParser()
+parser.add_argument("--application", type=str, required=True, choices={"bfs", "pr"})
 parser.add_argument("--graph_name", type=str, required=True)
-parser.add_argument("--enable_pdev", type=str, required=True, choices=["True", "False"])
+parser.add_argument("--enable_pdev", type=str, required=True, choices={"True", "False"})
 parser.add_argument("--prefetch_distance", type=int, required=True)
 parser.add_argument("--offset_from_pf_hint", type=int, required=True)
 parser.add_argument("--pdev_num_tbes", type=int, required=True)
@@ -66,6 +67,7 @@ parser.add_argument(
 )
 args = parser.parse_args()
 
+application = args.application
 graph_name = args.graph_name
 enable_pdev = args.enable_pdev == "True"
 prefetch_distance = args.prefetch_distance
@@ -73,6 +75,7 @@ private_cache_prefetcher = args.private_cache_prefetcher
 offset_from_pf_hint = args.offset_from_pf_hint
 pdev_num_tbes = args.pdev_num_tbes
 
+print(f"Application: {application}")
 print(f"Graph name: {graph_name}")
 print(f"Enable Pickle Device: {enable_pdev}")
 print(f"Prefetch Distance: {prefetch_distance}, Offset: {offset_from_pf_hint}")
@@ -317,7 +320,7 @@ else:
     starting_node_flag = f"-r {starting_node}"
 is_directed_graph = direction == "directed"
 symmetric_flag = "-s" if not is_directed_graph else ""
-command = f"/home/ubuntu/resource_temp/software/application/prefetcher/bfs2.hw.pdev.m5 -n 2 -f {graph_path} {symmetric_flag} {starting_node_flag}"
+command = f"/home/ubuntu/resource_temp/software/application/prefetcher/{application}2.hw.pdev.m5 -n 2 -f {graph_path} {symmetric_flag} {starting_node_flag}"
 checkpoint_name = graph_name
 checkpoint_path = Path(f"/workdir/ARTIFACTS/checkpoints/{checkpoint_name}")
 board.set_kernel_disk_workload(

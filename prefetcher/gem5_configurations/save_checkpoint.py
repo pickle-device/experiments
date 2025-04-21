@@ -51,10 +51,12 @@ from m5.objects import (
 mesh_descriptor = PrebuiltMesh.getMesh8("Mesh8")
 
 parser = argparse.ArgumentParser()
+parser.add_argument("--application", type=str, required=True, choices={"bfs", "pr"})
 parser.add_argument("--graph_name", type=str, required=True)
 # parser.add_argument("--enable_pdev", type=str, required=True, choices=["True", "False"])
 args = parser.parse_args()
 
+application = args.application
 graph_name = args.graph_name
 # enable_pdev = args.enable_pdev == "True"
 # from _m5.core import setOutputDir
@@ -261,7 +263,7 @@ else:
     starting_node_flag = f"-r {starting_node}"
 is_directed_graph = direction == "directed"
 symmetric_flag = "-s" if not is_directed_graph else ""
-command = f"/home/ubuntu/resource_temp/software/application/prefetcher/bfs2.hw.pdev.m5 -n 2 -f {graph_path} {symmetric_flag} {starting_node_flag}"
+command = f"/home/ubuntu/resource_temp/software/application/prefetcher/{application}2.hw.pdev.m5 -n 2 -f {graph_path} {symmetric_flag} {starting_node_flag}"
 
 board.set_kernel_disk_workload(
     kernel=CustomResource("/workdir/ARTIFACTS/linux-6.6.71/vmlinux"),
