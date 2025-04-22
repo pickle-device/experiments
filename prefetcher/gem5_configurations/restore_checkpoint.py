@@ -166,7 +166,7 @@ class PickleArmBoard(ArmBoard):
         ]
         self.pickle_device_prefetchers = [
             PrefetcherInterface(
-                prefetch_distance=prefetch_distance,
+                software_hint_prefetch_distance=prefetch_distance,
                 prefetch_distance_offset_from_software_hint=offset_from_pf_hint,
                 num_cores=len(all_cores),
                 prefetch_generator_mode=f"{application}"
