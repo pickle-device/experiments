@@ -37,7 +37,7 @@ from m5.objects import (
     AddrRange,
     ArmMMU,
     PickleDeviceRequestManager,
-    PrefetcherInterface,
+    PicklePrefetcher,
     TAGE_SC_L_64KB,
     RubyDataMovementTracker,
 )
@@ -165,7 +165,7 @@ class PickleArmBoard(ArmBoard):
             PickleDeviceRequestManager() for i in range(num_PD_tiles)
         ]
         self.pickle_device_prefetchers = [
-            PrefetcherInterface(
+            PicklePrefetcher(
                 software_hint_prefetch_distance=prefetch_distance,
                 prefetch_distance_offset_from_software_hint=offset_from_pf_hint,
                 num_cores=len(all_cores),
