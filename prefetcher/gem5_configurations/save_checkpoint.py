@@ -267,7 +267,7 @@ command = f"/home/ubuntu/resource_temp/software/application/prefetcher/{applicat
 
 board.set_kernel_disk_workload(
     kernel=CustomResource("/workdir/ARTIFACTS/linux-6.6.71/vmlinux"),
-    disk_image=CustomDiskImageResource("/workdir/ARTIFACTS/arm64.img.v2"),
+    disk_image=CustomDiskImageResource("/workdir/ARTIFACTS/arm64.img.v3"),
     bootloader=obtain_resource("arm64-bootloader", resource_version="1.0.0"),
     readfile_contents=command,
 )
@@ -311,7 +311,7 @@ print("Running the simulation")
 # We start the simulation.
 simulator.run()
 
-checkpoint_name = graph_name
+checkpoint_name = f"{application}-{graph_name}"
 simulator.save_checkpoint(Path(f"/workdir/ARTIFACTS/checkpoints/{checkpoint_name}"))
 
 print(f"Ran a total of {simulator.get_current_tick() / 1e12} simulated seconds")

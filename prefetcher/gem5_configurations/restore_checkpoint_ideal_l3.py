@@ -322,11 +322,11 @@ else:
 is_directed_graph = direction == "directed"
 symmetric_flag = "-s" if not is_directed_graph else ""
 command = f"/home/ubuntu/resource_temp/software/application/prefetcher/{application}2.hw.pdev.m5 -n 2 -f {graph_path} {symmetric_flag} {starting_node_flag}"
-checkpoint_name = graph_name
+checkpoint_name = f"{application}-{graph_name}"
 checkpoint_path = Path(f"/workdir/ARTIFACTS/checkpoints/{checkpoint_name}")
 board.set_kernel_disk_workload(
     kernel=CustomResource("/workdir/ARTIFACTS/vmlinux-6.6.71"),
-    disk_image=CustomDiskImageResource("/workdir/ARTIFACTS/arm64.img.v2"),
+    disk_image=CustomDiskImageResource("/workdir/ARTIFACTS/arm64.img.v3"),
     bootloader=obtain_resource("arm64-bootloader", resource_version="1.0.0"),
     checkpoint=checkpoint_path,
     readfile_contents=command,
