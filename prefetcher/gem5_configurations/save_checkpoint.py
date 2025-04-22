@@ -38,6 +38,7 @@ from m5.objects import (
     ArmMMU,
     PickleDeviceRequestManager,
     PicklePrefetcher,
+    TAGE_SC_L_64KB,
 )
 
 from m5.objects import (
@@ -58,7 +59,6 @@ args = parser.parse_args()
 
 application = args.application
 graph_name = args.graph_name
-# enable_pdev = args.enable_pdev == "True"
 # from _m5.core import setOutputDir
 # setOutputDir(f"/workdir/ARTIFACTS/results/bfs-pickle-{graph_name}-distance-32")
 
@@ -147,8 +147,10 @@ class PickleArmBoard(ArmBoard):
         ]
         self.pickle_device_prefetchers = [
             PicklePrefetcher(
-                prefetch_distance=1,
+                software_hint_prefetch_distance=1,
                 prefetch_distance_offset_from_software_hint=0,
+                num_cores=len(all_cores),
+                prefetch_generator_mode=f"{application}"
             )
             for i in range(num_PD_tiles)
         ]

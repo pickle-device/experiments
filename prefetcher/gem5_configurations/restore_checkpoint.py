@@ -326,7 +326,7 @@ checkpoint_name = f"{application}-{graph_name}"
 checkpoint_path = Path(f"/workdir/ARTIFACTS/checkpoints/{checkpoint_name}")
 board.set_kernel_disk_workload(
     kernel=CustomResource("/workdir/ARTIFACTS/vmlinux-6.6.71"),
-    disk_image=CustomDiskImageResource("/workdir/ARTIFACTS/arm64.img.v2"),
+    disk_image=CustomDiskImageResource("/workdir/ARTIFACTS/arm64.img.v3"),
     bootloader=obtain_resource("arm64-bootloader", resource_version="1.0.0"),
     checkpoint=checkpoint_path,
     readfile_contents=command,
