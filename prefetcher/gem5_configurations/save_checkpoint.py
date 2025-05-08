@@ -150,6 +150,7 @@ class PickleArmBoard(ArmBoard):
                 software_hint_prefetch_distance=1,
                 prefetch_distance_offset_from_software_hint=0,
                 num_cores=len(all_cores),
+                expected_number_of_prefetch_generators=2
             )
             for i in range(num_PD_tiles)
         ]
