@@ -33,7 +33,7 @@ from m5.objects import (
 from gem5.components.boards.test_board import TestBoard
 from gem5.components.memory.dram_interfaces.ddr5 import DDR5_8400_4x8
 from gem5.components.memory.memory import ChanneledMemory
-from gem5.components.processors.linear_generator import LinearGenerator
+from gem5.components.processors.traffic_generator import TrafficGenerator
 from gem5.simulate.simulator import Simulator
 from gem5.utils.override import overrides
 
@@ -43,12 +43,33 @@ from MeshCache.components.PrebuiltMesh import PrebuiltMesh
 
 mesh_descriptor = PrebuiltMesh.getMesh9("Mesh9")
 
-generator = LinearGenerator(
-    num_cores=2,
-    duration="1ms",
-    rate="32GiB/s",
-    max_addr=2 ** 16,
-    rd_perc=100,
+with open("mem_config1.cfg", "w") as f:
+    #        STATE id    duration   type read_percent start_addr end_addr block_size min_period max_period data_limit
+    f.write(
+        "STATE  0   100000000 LINEAR            0          0 16777216         64     500000     600000          0\n"
+    )
+    f.write("STATE  1   100000000   EXIT\n")
+    f.write("INIT 0\n")
+    f.write("TRANSITION 0 1 1.0\n")
+    f.write("TRANSITION 1 0 1.0\n")
+
+with open("mem_config2.cfg", "w") as f:
+    #        STATE id    duration   type read_percent start_addr end_addr block_size min_period max_period data_limit
+    f.write("STATE  0      800000   IDLE\n")
+    f.write(
+        "STATE  1   100000000 LINEAR          100          0 16777216         64     500000     600000          0\n"
+    )
+    f.write("STATE  2   100000000   EXIT\n")
+    f.write("INIT 0\n")
+    f.write("TRANSITION 0 1 1.0\n")
+    f.write("TRANSITION 1 2 1.0\n")
+    f.write("TRANSITION 2 0 1.0\n")
+
+generator = TrafficGenerator(
+    [
+        "mem_config1.cfg",
+        "mem_config2.cfg",
+    ]
 )
 
 memory = ChanneledMemory(
