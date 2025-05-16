@@ -97,8 +97,8 @@ mesh_cache = MeshCacheWithPickleDevice(
     l2_assoc=16,
     l3_size="32MiB",
     l3_assoc=16,
-    device_cache_size="32KiB",
-    device_cache_assoc=8,
+    device_cache_size="256KiB",
+    device_cache_assoc=16,
     num_core_complexes=1,
     is_fullsystem=True,
     mesh_descriptor=mesh_descriptor,
@@ -164,12 +164,14 @@ class PickleArmBoard(ArmBoard):
         self.pickle_device_request_manager = [
             PickleDeviceRequestManager() for i in range(num_PD_tiles)
         ]
+        num_generators = 1 if application == "bfs" else 2
         self.pickle_device_prefetchers = [
             PicklePrefetcher(
                 software_hint_prefetch_distance=prefetch_distance,
                 prefetch_distance_offset_from_software_hint=offset_from_pf_hint,
                 num_cores=len(all_cores),
                 expected_number_of_prefetch_generators=2,
+                concurrent_work_item_capacity=64,
             )
             for i in range(num_PD_tiles)
         ]
