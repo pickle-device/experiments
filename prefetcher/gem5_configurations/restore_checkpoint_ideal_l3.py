@@ -322,7 +322,7 @@ else:
     starting_node_flag = f"-r {starting_node}"
 is_directed_graph = direction == "directed"
 symmetric_flag = "-s" if not is_directed_graph else ""
-command = f"/home/ubuntu/resource_temp/software/application/prefetcher/{application}2.hw.pdev.m5 -n 2 -f {graph_path} {symmetric_flag} {starting_node_flag}"
+command = f"/home/ubuntu/gapbs/{application}2.hw.pdev.m5 -n 2 -f {graph_path} {symmetric_flag} {starting_node_flag}"
 checkpoint_name = f"{application}-{graph_name}"
 checkpoint_path = Path(f"/workdir/ARTIFACTS/checkpoints/{checkpoint_name}")
 board.set_kernel_disk_workload(
@@ -344,7 +344,7 @@ def handle_exit_with_pdev():
         snooper.switchOn()
     yield False
 
-    print("[exit 3] ITER 2: *** ROI START ***")
+    print("[exit 3] ITER 2: *** ROI start ***")
     m5.stats.dump()
     yield False
 
@@ -360,7 +360,7 @@ def handle_exit_without_pdev():
         snooper.switchOn()
     yield False
 
-    print("[exit 3] ITER 2: *** ROI START ***")
+    print("[exit 3] ITER 2: *** ROI start ***")
     m5.stats.dump()
     yield False
 
