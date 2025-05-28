@@ -172,6 +172,7 @@ class PickleArmBoard(ArmBoard):
                 num_cores=len(all_cores),
                 expected_number_of_prefetch_generators=num_generators,
                 concurrent_work_item_capacity=64,
+                prefetch_dropping_distance=16
             )
             for i in range(num_PD_tiles)
         ]
