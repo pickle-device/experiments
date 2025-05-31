@@ -172,7 +172,7 @@ class PickleArmBoard(ArmBoard):
                 num_cores=len(all_cores),
                 expected_number_of_prefetch_generators=num_generators,
                 concurrent_work_item_capacity=64,
-                prefetch_dropping_distance=16
+                prefetch_dropping_distance=16,
             )
             for i in range(num_PD_tiles)
         ]
@@ -236,6 +236,31 @@ class PickleArmBoard(ArmBoard):
                     controller=pdev_tile.controller,
                     ruby_system=self.cache_hierarchy.ruby_system,
                 )
+        print("Making the Pickle device links wider")
+        for link in self.cache_hierarchy.ruby_system.network.int_links:
+            if (
+                link.src_node
+                == board.cache_hierarchy.pickle_device_component_tiles[
+                    0
+                ].cross_tile_router
+                or link.dst_node
+                == board.cache_hierarchy.pickle_device_component_tiles[
+                    0
+                ].cross_tile_router
+            ):
+                link.bandwidth_factor = 512
+        for link in self.cache_hierarchy.ruby_system.network.ext_links:
+            if (
+                link.int_node
+                == board.cache_hierarchy.pickle_device_component_tiles[
+                    0
+                ].cross_tile_router
+                or link.ext_node
+                == board.cache_hierarchy.pickle_device_component_tiles[
+                    0
+                ].cross_tile_router
+            ):
+                link.bandwidth_factor = 512
 
     @overrides(ArmBoard)
     def _post_instantiate(self):
