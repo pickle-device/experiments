@@ -150,7 +150,7 @@ class PickleArmBoard(ArmBoard):
         all_cores = [core.core for core in self.processor.get_cores()]
         self.traffic_snoopers = [
             TrafficSnooper(
-                watch_ranges=[AddrRange(0x10110000, 0x10120000)], snoop_on=False
+                watch_ranges=[AddrRange(0x10110000, 0x10130000)], snoop_on=True
             )
             for i in range(num_PD_tiles * len(all_cores))
         ]

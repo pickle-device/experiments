@@ -132,7 +132,7 @@ class PickleArmBoard(ArmBoard):
         )
         all_cores = [core.core for core in self.processor.get_cores()]
         self.traffic_snoopers = [
-            TrafficSnooper(watch_ranges=[AddrRange(0x10110000, 0x10120000)])
+            TrafficSnooper(watch_ranges=[AddrRange(0x10110000, 0x10130000)])
             for i in range(num_PD_tiles * len(all_cores))
         ]
         self.pickle_device_mmus = [
@@ -150,7 +150,9 @@ class PickleArmBoard(ArmBoard):
                 software_hint_prefetch_distance=1,
                 prefetch_distance_offset_from_software_hint=0,
                 num_cores=len(all_cores),
-                expected_number_of_prefetch_generators=2
+                expected_number_of_prefetch_generators=2,
+                concurrent_work_item_capacity=64,
+                prefetch_dropping_distance=16,
             )
             for i in range(num_PD_tiles)
         ]
