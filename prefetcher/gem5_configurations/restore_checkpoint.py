@@ -58,6 +58,8 @@ parser.add_argument("--graph_name", type=str, required=True)
 parser.add_argument("--enable_pdev", type=str, required=True, choices={"True", "False"})
 parser.add_argument("--prefetch_distance", type=int, required=True)
 parser.add_argument("--offset_from_pf_hint", type=int, required=True)
+parser.add_argument("--prefetch_drop_distance", type=int, required=True)
+parser.add_argument("--concurrent_work_item_capacity", type=int, required=True)
 parser.add_argument("--pdev_num_tbes", type=int, required=True)
 parser.add_argument(
     "--private_cache_prefetcher",
@@ -73,12 +75,15 @@ enable_pdev = args.enable_pdev == "True"
 prefetch_distance = args.prefetch_distance
 private_cache_prefetcher = args.private_cache_prefetcher
 offset_from_pf_hint = args.offset_from_pf_hint
+prefetch_drop_distance = args.prefetch_drop_distance
+concurrent_work_item_capacity = args.concurrent_work_item_capacity
 pdev_num_tbes = args.pdev_num_tbes
 
 print(f"Application: {application}")
 print(f"Graph name: {graph_name}")
 print(f"Enable Pickle Device: {enable_pdev}")
-print(f"Prefetch Distance: {prefetch_distance}, Offset: {offset_from_pf_hint}")
+print(f"Prefetch Distance: {prefetch_distance}, Offset: {offset_from_pf_hint}, Drop Distance: {prefetch_drop_distance}")
+print(f"Concurrent work item capacity: {concurrent_work_item_capacity}")
 print(f"Num PDEV TBEs: {pdev_num_tbes}")
 
 # from _m5.core import setOutputDir
@@ -171,8 +176,8 @@ class PickleArmBoard(ArmBoard):
                 prefetch_distance_offset_from_software_hint=offset_from_pf_hint,
                 num_cores=len(all_cores),
                 expected_number_of_prefetch_generators=num_generators,
-                concurrent_work_item_capacity=64,
-                prefetch_dropping_distance=16,
+                concurrent_work_item_capacity=concurrent_work_item_capacity,
+                prefetch_dropping_distance=prefetch_drop_distance,
             )
             for i in range(num_PD_tiles)
         ]
@@ -369,6 +374,10 @@ def handle_exit_with_pdev():
         dev.switchOn()
     for snooper in board.traffic_snoopers:
         snooper.switchOn()
+    # trigger test again, now the prefetches should not be sent out because
+    # the cache lines are already in the LLC
+    #for agent in board.cache_hierarchy.llc_prefetch_agents:
+    #    agent.triggerTests()
     yield False
 
     print("[exit 3] ITER 2: *** ROI start ***")
@@ -399,6 +408,12 @@ def handle_exit_without_pdev():
 def handle_max_tick():
     print("[exit 1] ITER 1: *** ROI start ***")
     m5.stats.dump()
+    # trigger the test, the prefetch agent 0 should send out requests to LLC
+    #for agent in board.cache_hierarchy.llc_prefetch_agents:
+    #    agent.triggerTests()
+    #m5.debug.flags["ProtocolTrace"].enable()
+    #m5.debug.flags["RubyProtocol"].enable()
+    m5.debug.flags["PickleRubyDebug"].enable()
     yield False
 
 
