@@ -59,6 +59,7 @@ parser.add_argument("--enable_pdev", type=str, required=True, choices={"True", "
 parser.add_argument("--prefetch_distance", type=int, required=True)
 parser.add_argument("--offset_from_pf_hint", type=int, required=True)
 parser.add_argument("--prefetch_drop_distance", type=int, required=True)
+parser.add_argument("--delegate_last_layer_prefetch", type=str, required=True, choices={"True", "False"})
 parser.add_argument("--concurrent_work_item_capacity", type=int, required=True)
 parser.add_argument("--pdev_num_tbes", type=int, required=True)
 parser.add_argument(
@@ -76,6 +77,7 @@ prefetch_distance = args.prefetch_distance
 private_cache_prefetcher = args.private_cache_prefetcher
 offset_from_pf_hint = args.offset_from_pf_hint
 prefetch_drop_distance = args.prefetch_drop_distance
+delegate_last_layer_prefetch = args.delegate_last_layer_prefetch
 concurrent_work_item_capacity = args.concurrent_work_item_capacity
 pdev_num_tbes = args.pdev_num_tbes
 
@@ -83,6 +85,7 @@ print(f"Application: {application}")
 print(f"Graph name: {graph_name}")
 print(f"Enable Pickle Device: {enable_pdev}")
 print(f"Prefetch Distance: {prefetch_distance}, Offset: {offset_from_pf_hint}, Drop Distance: {prefetch_drop_distance}")
+print(f"Delegate to LLC Agent: {delegate_last_layer_prefetch}")
 print(f"Concurrent work item capacity: {concurrent_work_item_capacity}")
 print(f"Num PDEV TBEs: {pdev_num_tbes}")
 
@@ -178,6 +181,7 @@ class PickleArmBoard(ArmBoard):
                 expected_number_of_prefetch_generators=num_generators,
                 concurrent_work_item_capacity=concurrent_work_item_capacity,
                 prefetch_dropping_distance=prefetch_drop_distance,
+                delegate_last_layer_prefetches_to_llc_agents=delegate_last_layer_prefetch
             )
             for i in range(num_PD_tiles)
         ]
@@ -413,7 +417,7 @@ def handle_max_tick():
     #    agent.triggerTests()
     #m5.debug.flags["ProtocolTrace"].enable()
     #m5.debug.flags["RubyProtocol"].enable()
-    m5.debug.flags["PickleRubyDebug"].enable()
+    #m5.debug.flags["PickleRubyDebug"].enable()
     yield False
 
 
