@@ -53,7 +53,7 @@ from m5.objects import (
 mesh_descriptor = PrebuiltMesh.getMesh8("Mesh8")
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--application", type=str, required=True, choices={"bfs", "pr"})
+parser.add_argument("--application", type=str, required=True, choices={"bfs", "pr", "spmv"})
 parser.add_argument("--graph_name", type=str, required=True)
 parser.add_argument("--enable_pdev", type=str, required=True, choices={"True", "False"})
 parser.add_argument("--prefetch_distance", type=int, required=True)
@@ -88,6 +88,15 @@ num_cores = mesh_descriptor.get_num_core_tiles()
 
 fast_forward_cpu_type = CPUTypes.KVM
 
+special_memory_requirement = {
+    ("spmv", "nlpkkt200"): "8GiB",
+    ("spmv", "nlpkkt240"): "16GiB",
+}
+def choose_memory_size(application, graph_name):
+    if (application, graph_name) in special_memory_requirement:
+        return special_memory_requirement[(application, graph_name)]
+    return "4GiB"
+
 mesh_cache = MeshCacheWithPickleDevice(
     l1i_size="32KiB",
     l1i_assoc=8,
@@ -111,7 +120,7 @@ memory = ChanneledMemory(
     dram_interface_class=DDR5_8400_4x8,
     num_channels=mesh_descriptor.get_num_mem_tiles(),
     interleaving_size=64,
-    size="4GiB",
+    size=choose_memory_size(application, graph_name),
 )
 
 processor = SimpleProcessor(cpu_type=CPUTypes.O3, isa=ISA.ARM, num_cores=num_cores)
@@ -315,14 +324,30 @@ graph_path_map = {
     "test5": ("/home/ubuntu/graphs/synth_5.el", "undirected", None),
     "test10": ("/home/ubuntu/graphs/synth_10.el", "undirected", None),
 }
-graph_path, direction, starting_node = graph_path_map[graph_name]
-if not starting_node:
-    starting_node_flag = ""
+
+matrix_path_map = {
+    "steam1": "/home/ubuntu/mm/steam1/steam1.csr",
+    "nlpkkt200": "/home/ubuntu/mm/nlpkkt200/nlpkkt200.csr",
+    "consph": "/home/ubuntu/mm/consph/consph.csr",
+    "roadnet": "/home/ubuntu/mm/USA-road-d.USA.csr",
+    "Ga41As41H72": "/home/ubuntu/mm/Ga41As41H72/Ga41As41H72.csr",
+}
+
+if application in ("bfs", "pr"):
+    graph_path, direction, starting_node = graph_path_map[graph_name]
+    if not starting_node:
+        starting_node_flag = ""
+    else:
+        starting_node_flag = f"-r {starting_node}"
+    is_directed_graph = direction == "directed"
+    symmetric_flag = "-s" if not is_directed_graph else ""
+    command = f"/home/ubuntu/gapbs/{application}2.hw.pdev.m5 -n 2 -f {graph_path} {symmetric_flag} {starting_node_flag}"
+else if application in ("spmv"):
+    graph_path = matrix_path_map[graph_name]
+    command = f"/home/ubuntu/benchmarks/spmv/spmv.hw.pdev.m5 {graph_path}"
 else:
-    starting_node_flag = f"-r {starting_node}"
-is_directed_graph = direction == "directed"
-symmetric_flag = "-s" if not is_directed_graph else ""
-command = f"/home/ubuntu/gapbs/{application}2.hw.pdev.m5 -n 2 -f {graph_path} {symmetric_flag} {starting_node_flag}"
+    assert False, f"Unknown application: {application}"
+
 checkpoint_name = f"{application}-{graph_name}"
 checkpoint_path = Path(f"/workdir/ARTIFACTS/checkpoints/{checkpoint_name}")
 board.set_kernel_disk_workload(
