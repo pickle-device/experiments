@@ -379,7 +379,7 @@ if application in ("bfs", "pr"):
     is_directed_graph = direction == "directed"
     symmetric_flag = "-s" if not is_directed_graph else ""
     command = f"/home/ubuntu/gapbs/{application}2.hw.pdev.m5 -n 2 -f {graph_path} {symmetric_flag} {starting_node_flag}"
-else if application in ("spmv"):
+elif application in ("spmv"):
     graph_path = matrix_path_map[graph_name]
     command = f"/home/ubuntu/benchmarks/spmv/spmv.hw.pdev.m5 {graph_path}"
 else:
