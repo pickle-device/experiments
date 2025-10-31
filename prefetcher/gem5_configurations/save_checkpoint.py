@@ -52,7 +52,7 @@ from m5.objects import (
 mesh_descriptor = PrebuiltMesh.getMesh8("Mesh8")
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--application", type=str, required=True, choices={"bfs", "pr", "spmv"})
+parser.add_argument("--application", type=str, required=True, choices={"bfs", "pr", "tc", "cc", "spmv"})
 parser.add_argument("--graph_name", type=str, required=True)
 # parser.add_argument("--enable_pdev", type=str, required=True, choices=["True", "False"])
 args = parser.parse_args()
@@ -210,6 +210,11 @@ graph_path_map = {
         "undirected",
         "109638",
     ),  # 334863 / 1851736
+    "as_skitter": (
+        "/home/ubuntu/graphs/as_skitter.el",
+        "undirected",
+        "1"
+    ), # 1696415 / 11095298
     "gplus": (
         "/home/ubuntu/graphs/gplus_newid.el",
         "directed",
@@ -278,16 +283,22 @@ matrix_path_map = {
     "Ga41As41H72": "/home/ubuntu/mm/Ga41As41H72/Ga41As41H72.csr",
 }
 
-if application in ("bfs", "pr"):
+if application in {"bfs", "pr", "tc", "cc"}:
     graph_path, direction, starting_node = graph_path_map[graph_name]
-    if not starting_node:
-        starting_node_flag = ""
-    else:
-        starting_node_flag = f"-r {starting_node}"
     is_directed_graph = direction == "directed"
     symmetric_flag = "-s" if not is_directed_graph else ""
+    starting_node_flag = ""
+    if application == "bfs": # we need a starting node in BFS to reliably walk through a large cluster
+        if not starting_node:
+            starting_node_flag = ""
+        else:
+            starting_node_flag = f"-r {starting_node}"
+    if application == "tc": # tc requires the input graph to be undirected
+        if is_directed_graph:
+            symmetric_flag = "-s"
+            #assert False, f"tc requires the input graph to be undirected"
     command = f"/home/ubuntu/gapbs/{application}2.hw.pdev.m5 -n 2 -f {graph_path} {symmetric_flag} {starting_node_flag}"
-elif application in ("spmv"):
+elif application in {"spmv"}:
     graph_path = matrix_path_map[graph_name]
     command = f"/home/ubuntu/benchmarks/spmv/spmv.hw.pdev.m5 {graph_path}"
 else:
