@@ -56,6 +56,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--application", type=str, required=True, choices={"bfs", "pr", "tc", "cc", "spmv"})
 parser.add_argument("--graph_name", type=str, required=True)
 parser.add_argument("--enable_pdev", type=str, required=True, choices={"True", "False"})
+parser.add_argument("--pickle_cache_size", type=str, required=True, help="Prefetcher cache size, e.g., 4KiB")
 parser.add_argument("--prefetch_distance", type=int, required=True)
 parser.add_argument("--offset_from_pf_hint", type=int, required=True)
 parser.add_argument("--prefetch_drop_distance", type=int, required=True)
@@ -73,6 +74,7 @@ args = parser.parse_args()
 application = args.application
 graph_name = args.graph_name
 enable_pdev = args.enable_pdev == "True"
+pickle_cache_size = args.pickle_cache_size
 prefetch_distance = args.prefetch_distance
 private_cache_prefetcher = args.private_cache_prefetcher
 offset_from_pf_hint = args.offset_from_pf_hint
@@ -115,7 +117,7 @@ mesh_cache = MeshCacheWithPickleDevice(
     l2_assoc=16,
     l3_size="32MiB",
     l3_assoc=16,
-    device_cache_size="256KiB",
+    device_cache_size=pickle_cache_size,
     device_cache_assoc=16,
     num_core_complexes=1,
     is_fullsystem=True,
