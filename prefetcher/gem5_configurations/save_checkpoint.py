@@ -307,7 +307,8 @@ else:
 board.set_kernel_disk_workload(
     kernel=CustomResource("/workdir/ARTIFACTS/linux-6.6.71/vmlinux"),
     disk_image=CustomDiskImageResource("/workdir/ARTIFACTS/arm64.img.v3"),
-    bootloader=obtain_resource("arm64-bootloader", resource_version="1.0.0"),
+    #bootloader=obtain_resource("arm64-bootloader", resource_version="1.0.0"),
+    bootloader=CustomResource("/workdir/.cache/gem5/arm64-bootloader"),
     readfile_contents=command,
 )
 
