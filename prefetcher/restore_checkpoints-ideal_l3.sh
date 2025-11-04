@@ -1,25 +1,44 @@
 #!/bin/bash
 
-applications=("bfs" "pr")
-graph_names=("amazon" "gplus" "higgs" "livejournal" "orkut" "pokec" "roadNetCA" "twitch" "youtube" "web_berkstan" "web_google" "wiki_talk" "wiki_topcats")
-OUTPUT_FOLDER="/workdir/ARTIFACTS/results_v8/"
+applications=("bfs" "cc" "tc")
+graph_names=("test5" "test10" "amazon" "as_skitter" "livejournal" "orkut" "pokec" "roadNetCA" "youtube" "web_berkstan" "web_google" "wiki_talk")
+OUTPUT_FOLDER="/workdir/ARTIFACTS/results/gapbs/"
+LLC_CAPACITIES=("96MiB" "6GiB")
 
 for application in "${applications[@]}"
 do
     for graph_name in "${graph_names[@]}"
     do
-        echo "Running $application-$graph_name with no prefetchers"
-        /workdir/gem5/build/ARM/gem5.opt \
-            -re \
-            --outdir=$OUTPUT_FOLDER/$application-$graph_name-ideal_l3 \
-            --debug-flags=PickleDevicePrefetcherProgressTracker \
-            experiments/prefetcher/gem5_configurations/restore_checkpoint_ideal_l3.py \
-            --application $application \
-            --graph_name=$graph_name \
-            --enable_pdev=False \
-            --prefetch_distance=0 \
-            --offset_from_pf_hint=0 \
-            --pdev_num_tbes 1024 \
-            --private_cache_prefetcher=none &
+        for llc_capacity in "${LLC_CAPACITIES[@]}"
+        do
+            echo "Running $application-$graph_name with ${llc_capacity} LLC"
+            HOME=/workdir /workdir/gem5/build/ARM/gem5.opt \
+                -re \
+                --outdir=$OUTPUT_FOLDER/$application-$graph_name-llc_$llc_capacity \
+                --debug-flags=PickleDevicePrefetcherProgressTracker \
+                experiments/prefetcher/gem5_configurations/restore_checkpoint_ideal_l3.py \
+                --llc_capacity=$llc_capacity &
+        done
+    done
+done
+
+applications=("spmv")
+graph_names=("steam1" "nlpkkt200" "consph" "roadnet" "Ga41As41H72")
+OUTPUT_FOLDER="/workdir/ARTIFACTS/results/spmv/"
+
+for application in "${applications[@]}"
+do
+    for graph_name in "${graph_names[@]}"
+    do
+        for llc_capacity in "${LLC_CAPACITIES[@]}"
+        do
+            echo "Running $application-$graph_name with ${llc_capacity} LLC"
+            HOME=/workdir /workdir/gem5/build/ARM/gem5.opt \
+                -re \
+                --outdir=$OUTPUT_FOLDER/$application-$graph_name-llc_$llc_capacity \
+                --debug-flags=PickleDevicePrefetcherProgressTracker \
+                experiments/prefetcher/gem5_configurations/restore_checkpoint_ideal_l3.py \
+                --llc_capacity=$llc_capacity &
+        done
     done
 done
