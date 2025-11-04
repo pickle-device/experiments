@@ -3,7 +3,8 @@
 applications=("bfs" "cc" "tc")
 graph_names=("test5" "test10" "amazon" "as_skitter" "livejournal" "orkut" "pokec" "roadNetCA" "youtube" "web_berkstan" "web_google" "wiki_talk")
 OUTPUT_FOLDER="/workdir/ARTIFACTS/results/gapbs/"
-LLC_CAPACITIES=("96MiB" "6GiB")
+#LLC_CAPACITIES=("96MiB" "6GiB")
+LLC_CAPACITIES=("96MiB")
 
 for application in "${applications[@]}"
 do
@@ -17,6 +18,8 @@ do
                 --outdir=$OUTPUT_FOLDER/$application-$graph_name-llc_$llc_capacity \
                 --debug-flags=PickleDevicePrefetcherProgressTracker \
                 experiments/prefetcher/gem5_configurations/restore_checkpoint_ideal_l3.py \
+                --application=$application \
+                --graph_name=$graph_name \
                 --llc_capacity=$llc_capacity &
         done
     done
@@ -38,6 +41,8 @@ do
                 --outdir=$OUTPUT_FOLDER/$application-$graph_name-llc_$llc_capacity \
                 --debug-flags=PickleDevicePrefetcherProgressTracker \
                 experiments/prefetcher/gem5_configurations/restore_checkpoint_ideal_l3.py \
+                --application=$application \
+                --graph_name=$graph_name \
                 --llc_capacity=$llc_capacity &
         done
     done
