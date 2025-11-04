@@ -1,15 +1,15 @@
 #!/bin/bash
 
-applications=("bfs" "pr")
-graph_names=("amazon" "gplus" "higgs" "livejournal" "orkut" "pokec" "roadNetCA" "twitch" "youtube" "web_berkstan" "web_google" "wiki_talk" "wiki_topcats")
-OUTPUT_FOLDER="/workdir/ARTIFACTS/results_v8/"
+applications=("bfs" "cc" "tc")
+graph_names=("test5" "test10" "amazon" "as_skitter" "livejournal" "orkut" "pokec" "roadNetCA" "youtube" "web_berkstan" "web_google" "wiki_talk")
+OUTPUT_FOLDER="/workdir/ARTIFACTS/results/gapbs/"
 
 for application in "${applications[@]}"
 do
     for graph_name in "${graph_names[@]}"
     do
         echo "Running $application-$graph_name with no prefetchers"
-        /workdir/gem5/build/ARM/gem5.opt \
+        HOME=/workdir /workdir/gem5/build/ARM/gem5.opt \
             -re \
             --outdir=$OUTPUT_FOLDER/$application-$graph_name-baseline \
             --debug-flags=PickleDevicePrefetcherProgressTracker \
@@ -17,9 +17,41 @@ do
             --application $application \
             --graph_name=$graph_name \
             --enable_pdev=False \
-            --prefetch_distance=0 \
-            --offset_from_pf_hint=0 \
+            --pickle_cache_size 256KiB \
+            --prefetch_distance 0 \
+            --offset_from_pf_hint 0 \
+            --prefetch_drop_distance 0 \
+            --delegate_last_layer_prefetch False \
+            --concurrent_work_item_capacity 64 \
             --pdev_num_tbes 1024 \
             --private_cache_prefetcher=none &
     done
 done
+
+applications=("spmv")
+graph_names=("steam1" "nlpkkt200" "consph" "roadnet" "Ga41As41H72")
+OUTPUT_FOLDER="/workdir/ARTIFACTS/results/spmv/"
+for application in "${applications[@]}"
+do
+    for graph_name in "${graph_names[@]}"
+    do
+        echo "Running $application-$graph_name with no prefetchers"
+        HOME=/workdir /workdir/gem5/build/ARM/gem5.opt \
+            -re \
+            --outdir=$OUTPUT_FOLDER/$application-$graph_name-baseline \
+            --debug-flags=PickleDevicePrefetcherProgressTracker \
+            experiments/prefetcher/gem5_configurations/restore_checkpoint.py \
+            --application $application \
+            --graph_name=$graph_name \
+            --enable_pdev=False \
+            --pickle_cache_size 256KiB \
+            --prefetch_distance 0 \
+            --offset_from_pf_hint 0 \
+            --prefetch_drop_distance 0 \
+            --delegate_last_layer_prefetch False \
+            --concurrent_work_item_capacity 64 \
+            --pdev_num_tbes 1024 \
+            --private_cache_prefetcher=none &
+    done
+done
+
