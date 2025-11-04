@@ -55,30 +55,35 @@ mesh_descriptor = PrebuiltMesh.getMesh8("Mesh8")
 parser = argparse.ArgumentParser()
 parser.add_argument("--application", type=str, required=True, choices={"bfs", "pr", "tc", "cc", "spmv"})
 parser.add_argument("--graph_name", type=str, required=True)
-parser.add_argument("--enable_pdev", type=str, required=True, choices={"True", "False"})
-parser.add_argument("--prefetch_distance", type=int, required=True)
-parser.add_argument("--offset_from_pf_hint", type=int, required=True)
-parser.add_argument("--pdev_num_tbes", type=int, required=True)
-parser.add_argument(
-    "--private_cache_prefetcher",
-    type=str,
-    required=True,
-    choices=["none", "stride", "imp", "ampm", "sms", "bop", "multiv1"],
-)
+parser.add_argument("--llc_capacity", type=str, required=True, choices={"32MiB", "96MiB", "6GiB"})
 args = parser.parse_args()
 
 application = args.application
 graph_name = args.graph_name
-enable_pdev = args.enable_pdev == "True"
-prefetch_distance = args.prefetch_distance
-private_cache_prefetcher = args.private_cache_prefetcher
-offset_from_pf_hint = args.offset_from_pf_hint
-pdev_num_tbes = args.pdev_num_tbes
+enable_pdev = "False"
+pickle_cache_size = "256KiB"
+prefetch_distance = 0
+private_cache_prefetcher = "none"
+offset_from_pf_hint = 0
+prefetch_drop_distance = 0
+delegate_last_layer_prefetch = "False"
+concurrent_work_item_capacity = 64
+pdev_num_tbes = 1024
+
+llc_capacity = args.llc_capacity
+llc_assoc_map = {
+    "32MiB": 16,
+    "96MiB": 48,
+    "6GiB": 1024,
+}
+llc_assoc = llc_assoc_map[llc_capacity]
 
 print(f"Application: {application}")
 print(f"Graph name: {graph_name}")
 print(f"Enable Pickle Device: {enable_pdev}")
-print(f"Prefetch Distance: {prefetch_distance}, Offset: {offset_from_pf_hint}")
+print(f"Prefetch Distance: {prefetch_distance}, Offset: {offset_from_pf_hint}, Drop Distance: {prefetch_drop_distance}")
+print(f"Delegate to LLC Agent: {delegate_last_layer_prefetch}")
+print(f"Concurrent work item capacity: {concurrent_work_item_capacity}")
 print(f"Num PDEV TBEs: {pdev_num_tbes}")
 
 # from _m5.core import setOutputDir
@@ -97,6 +102,7 @@ def choose_memory_size(application, graph_name):
         return special_memory_requirement[(application, graph_name)]
     return "4GiB"
 
+
 mesh_cache = MeshCacheWithPickleDevice(
     l1i_size="32KiB",
     l1i_assoc=8,
@@ -104,10 +110,10 @@ mesh_cache = MeshCacheWithPickleDevice(
     l1d_assoc=12,
     l2_size="1MiB",
     l2_assoc=16,
-    l3_size="6GiB",
-    l3_assoc=1024,
-    device_cache_size="32KiB",
-    device_cache_assoc=8,
+    l3_size=llc_capacity,
+    l3_assoc=llc_assoc,
+    device_cache_size=pickle_cache_size,
+    device_cache_assoc=16,
     num_core_complexes=1,
     is_fullsystem=True,
     mesh_descriptor=mesh_descriptor,
@@ -159,7 +165,7 @@ class PickleArmBoard(ArmBoard):
         all_cores = [core.core for core in self.processor.get_cores()]
         self.traffic_snoopers = [
             TrafficSnooper(
-                watch_ranges=[AddrRange(0x10110000, 0x10120000)], snoop_on=False
+                watch_ranges=[AddrRange(0x10110000, 0x10130000)], snoop_on=True
             )
             for i in range(num_PD_tiles * len(all_cores))
         ]
@@ -173,13 +179,16 @@ class PickleArmBoard(ArmBoard):
         self.pickle_device_request_manager = [
             PickleDeviceRequestManager() for i in range(num_PD_tiles)
         ]
+        num_generators = 1 if application == "bfs" else 2
         self.pickle_device_prefetchers = [
             PicklePrefetcher(
                 software_hint_prefetch_distance=prefetch_distance,
                 prefetch_distance_offset_from_software_hint=offset_from_pf_hint,
                 num_cores=len(all_cores),
-                expected_number_of_prefetch_generators=2,
-                concurrent_work_item_capacity=1,
+                expected_number_of_prefetch_generators=num_generators,
+                concurrent_work_item_capacity=concurrent_work_item_capacity,
+                prefetch_dropping_distance=prefetch_drop_distance,
+                delegate_last_layer_prefetches_to_llc_agents=delegate_last_layer_prefetch
             )
             for i in range(num_PD_tiles)
         ]
@@ -243,6 +252,31 @@ class PickleArmBoard(ArmBoard):
                     controller=pdev_tile.controller,
                     ruby_system=self.cache_hierarchy.ruby_system,
                 )
+        print("Making the Pickle device links wider")
+        for link in self.cache_hierarchy.ruby_system.network.int_links:
+            if (
+                link.src_node
+                == board.cache_hierarchy.pickle_device_component_tiles[
+                    0
+                ].cross_tile_router
+                or link.dst_node
+                == board.cache_hierarchy.pickle_device_component_tiles[
+                    0
+                ].cross_tile_router
+            ):
+                link.bandwidth_factor = 512
+        for link in self.cache_hierarchy.ruby_system.network.ext_links:
+            if (
+                link.int_node
+                == board.cache_hierarchy.pickle_device_component_tiles[
+                    0
+                ].cross_tile_router
+                or link.ext_node
+                == board.cache_hierarchy.pickle_device_component_tiles[
+                    0
+                ].cross_tile_router
+            ):
+                link.bandwidth_factor = 512
 
     @overrides(ArmBoard)
     def _post_instantiate(self):
@@ -379,6 +413,10 @@ def handle_exit_with_pdev():
         dev.switchOn()
     for snooper in board.traffic_snoopers:
         snooper.switchOn()
+    # trigger test again, now the prefetches should not be sent out because
+    # the cache lines are already in the LLC
+    #for agent in board.cache_hierarchy.llc_prefetch_agents:
+    #    agent.triggerTests()
     yield False
 
     print("[exit 3] ITER 2: *** ROI start ***")
@@ -409,6 +447,12 @@ def handle_exit_without_pdev():
 def handle_max_tick():
     print("[exit 1] ITER 1: *** ROI start ***")
     m5.stats.dump()
+    # trigger the test, the prefetch agent 0 should send out requests to LLC
+    #for agent in board.cache_hierarchy.llc_prefetch_agents:
+    #    agent.triggerTests()
+    #m5.debug.flags["ProtocolTrace"].enable()
+    #m5.debug.flags["RubyProtocol"].enable()
+    #m5.debug.flags["PickleRubyDebug"].enable()
     yield False
 
 
