@@ -60,13 +60,13 @@ args = parser.parse_args()
 
 application = args.application
 graph_name = args.graph_name
-enable_pdev = "False"
+enable_pdev = False
 pickle_cache_size = "256KiB"
 prefetch_distance = 0
 private_cache_prefetcher = "none"
 offset_from_pf_hint = 0
 prefetch_drop_distance = 0
-delegate_last_layer_prefetch = "False"
+delegate_last_layer_prefetch = False
 concurrent_work_item_capacity = 64
 pdev_num_tbes = 1024
 
