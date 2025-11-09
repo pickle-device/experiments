@@ -52,12 +52,20 @@ from m5.objects import (
 
 mesh_descriptor = PrebuiltMesh.getMesh8("Mesh8")
 
+prefetch_mode_map = {
+    "single_prefetch": 1,
+    "bulk_prefetch": 2,
+}
+
 parser = argparse.ArgumentParser()
 parser.add_argument("--application", type=str, required=True, choices={"bfs", "pr", "tc", "cc", "spmv"})
 parser.add_argument("--graph_name", type=str, required=True)
 parser.add_argument("--enable_pdev", type=str, required=True, choices={"True", "False"})
 parser.add_argument("--pickle_cache_size", type=str, required=True, help="Prefetcher cache size, e.g., 4KiB")
 parser.add_argument("--prefetch_distance", type=int, required=True)
+parser.add_argument("--prefetch_mode", type=str, required=True, choices=list(prefetch_mode_map.keys()))
+parser.add_argument("--bulk_prefetch_chunk_size", type=int, required=True)
+parser.add_argument("--bulk_prefetch_num_prefetches_per_hint", type=int, required=True)
 parser.add_argument("--offset_from_pf_hint", type=int, required=True)
 parser.add_argument("--prefetch_drop_distance", type=int, required=True)
 parser.add_argument("--delegate_last_layer_prefetch", type=str, required=True, choices={"True", "False"})
@@ -76,6 +84,9 @@ graph_name = args.graph_name
 enable_pdev = args.enable_pdev == "True"
 pickle_cache_size = args.pickle_cache_size
 prefetch_distance = args.prefetch_distance
+prefetch_mode = prefetch_mode_map[args.prefetch_mode]
+bulk_prefetch_chunk_size = args.bulk_prefetch_chunk_size
+bulk_prefetch_num_prefetches_per_hint = args.bulk_prefetch_num_prefetches_per_hint
 private_cache_prefetcher = args.private_cache_prefetcher
 offset_from_pf_hint = args.offset_from_pf_hint
 prefetch_drop_distance = args.prefetch_drop_distance
@@ -87,6 +98,7 @@ print(f"Application: {application}")
 print(f"Graph name: {graph_name}")
 print(f"Enable Pickle Device: {enable_pdev}")
 print(f"Prefetch Distance: {prefetch_distance}, Offset: {offset_from_pf_hint}, Drop Distance: {prefetch_drop_distance}")
+print(f"Prefetch Mode: {prefetch_mode}, Chunk Size: {bulk_prefetch_chunk_size}, Prefetches Per Hint: {bulk_prefetch_num_prefetches_per_hint}")
 print(f"Delegate to LLC Agent: {delegate_last_layer_prefetch}")
 print(f"Concurrent work item capacity: {concurrent_work_item_capacity}")
 print(f"Num PDEV TBEs: {pdev_num_tbes}")
@@ -184,11 +196,14 @@ class PickleArmBoard(ArmBoard):
         self.pickle_device_request_manager = [
             PickleDeviceRequestManager() for i in range(num_PD_tiles)
         ]
-        num_generators = 1 if application == "bfs" else 2
+        num_generators = 1
         self.pickle_device_prefetchers = [
             PicklePrefetcher(
                 software_hint_prefetch_distance=prefetch_distance,
                 prefetch_distance_offset_from_software_hint=offset_from_pf_hint,
+                prefetch_mode=prefetch_mode,
+                bulk_prefetch_chunk_size=bulk_prefetch_chunk_size,
+                bulk_prefetch_num_prefetches_per_hint=bulk_prefetch_num_prefetches_per_hint,
                 num_cores=len(all_cores),
                 expected_number_of_prefetch_generators=num_generators,
                 concurrent_work_item_capacity=concurrent_work_item_capacity,
