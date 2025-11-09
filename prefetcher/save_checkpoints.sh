@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #applications=("bfs" "pr")
-applications=("bfs" "tc" "cc")
+applications=("bfs" "tc" "cc" "pr")
 #graph_names=("test5" "test10" "amazon" "as_skitter" "gplus" "higgs" "livejournal" "orkut" "pokec" "roadNetCA" "twitch" "youtube" "web_berkstan" "web_google" "wiki_talk" "wiki_topcats")
 graph_names=("test5" "test10" "amazon" "as_skitter" "livejournal" "orkut" "pokec" "roadNetCA" "youtube" "web_berkstan" "web_google" "wiki_talk")
 OUTPUT_FOLDER="/workdir/ARTIFACTS/results_v8/"
