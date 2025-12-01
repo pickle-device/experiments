@@ -77,6 +77,7 @@ parser.add_argument(
     required=True,
     choices=["none", "stride", "imp", "ampm", "sms", "bop", "multiv1"],
 )
+parser.add_argument("--single_threaded", type=str, required=True, choices={"True", "False"})
 args = parser.parse_args()
 
 application = args.application
@@ -93,9 +94,11 @@ prefetch_drop_distance = args.prefetch_drop_distance
 delegate_last_layer_prefetch = args.delegate_last_layer_prefetch
 concurrent_work_item_capacity = args.concurrent_work_item_capacity
 pdev_num_tbes = args.pdev_num_tbes
+single_threaded = args.single_threaded == "True"
 
 print(f"Application: {application}")
 print(f"Graph name: {graph_name}")
+print(f"Single threaded: {single_threaded}")
 print(f"Enable Pickle Device: {enable_pdev}")
 print(f"Prefetch Distance: {prefetch_distance}, Offset: {offset_from_pf_hint}, Drop Distance: {prefetch_drop_distance}")
 print(f"Prefetch Mode: {prefetch_mode}, Chunk Size: {bulk_prefetch_chunk_size}, Prefetches Per Hint: {bulk_prefetch_num_prefetches_per_hint}")
@@ -392,6 +395,11 @@ matrix_path_map = {
     "Ga41As41H72": "/home/ubuntu/mm/Ga41As41H72/Ga41As41H72.csr",
 }
 
+command_prefix = ""
+if single_threaded:
+    # here we pin the app to core 1 and run on 1 thread
+    command_prefix = "export OMP_NUM_THREADS=1; taskset -c 1"
+
 if application in {"bfs", "pr", "tc", "cc"}:
     graph_path, direction, starting_node = graph_path_map[graph_name]
     is_directed_graph = direction == "directed"
@@ -406,14 +414,16 @@ if application in {"bfs", "pr", "tc", "cc"}:
         if is_directed_graph:
             symmetric_flag = "-s"
             #assert False, f"tc requires the input graph to be undirected"
-    command = f"/home/ubuntu/gapbs/{application}2.hw.pdev.m5 -n 2 -f {graph_path} {symmetric_flag} {starting_node_flag}"
+    command = f"{command_prefix} /home/ubuntu/gapbs/{application}2.hw.pdev.m5 -n 2 -f {graph_path} {symmetric_flag} {starting_node_flag}"
 elif application in {"spmv"}:
     graph_path = matrix_path_map[graph_name]
-    command = f"/home/ubuntu/benchmarks/spmv/spmv.hw.pdev.m5 {graph_path}"
+    command = f"{command_prefix} /home/ubuntu/benchmarks/spmv/spmv.hw.pdev.m5 {graph_path}"
 else:
     assert False, f"Unknown application: {application}"
 
 checkpoint_name = f"{application}-{graph_name}"
+if single_threaded:
+    checkpoint_name += "-single_threaded"
 checkpoint_path = Path(f"/workdir/ARTIFACTS/checkpoints/{checkpoint_name}")
 board.set_kernel_disk_workload(
     kernel=CustomResource("/workdir/ARTIFACTS/vmlinux-6.6.71"),

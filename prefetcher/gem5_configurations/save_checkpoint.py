@@ -54,11 +54,13 @@ mesh_descriptor = PrebuiltMesh.getMesh8("Mesh8")
 parser = argparse.ArgumentParser()
 parser.add_argument("--application", type=str, required=True, choices={"bfs", "pr", "tc", "cc", "spmv"})
 parser.add_argument("--graph_name", type=str, required=True)
+parser.add_argument("--single_threaded", type=str, required=True, choices={"True", "False"})
 # parser.add_argument("--enable_pdev", type=str, required=True, choices=["True", "False"])
 args = parser.parse_args()
 
 application = args.application
 graph_name = args.graph_name
+single_threaded = args.single_threaded == "True"
 # from _m5.core import setOutputDir
 # setOutputDir(f"/workdir/ARTIFACTS/results/bfs-pickle-{graph_name}-distance-32")
 
@@ -283,6 +285,11 @@ matrix_path_map = {
     "Ga41As41H72": "/home/ubuntu/mm/Ga41As41H72/Ga41As41H72.csr",
 }
 
+command_prefix = ""
+if single_threaded:
+    # here we pin the app to core 1 and run on 1 thread
+    command_prefix = "export OMP_NUM_THREADS=1; taskset -c 1"
+
 if application in {"bfs", "pr", "tc", "cc"}:
     graph_path, direction, starting_node = graph_path_map[graph_name]
     is_directed_graph = direction == "directed"
@@ -297,10 +304,10 @@ if application in {"bfs", "pr", "tc", "cc"}:
         if is_directed_graph:
             symmetric_flag = "-s"
             #assert False, f"tc requires the input graph to be undirected"
-    command = f"/home/ubuntu/gapbs/{application}2.hw.pdev.m5 -n 2 -f {graph_path} {symmetric_flag} {starting_node_flag}"
+    command = f"{command_prefix} /home/ubuntu/gapbs/{application}2.hw.pdev.m5 -n 2 -f {graph_path} {symmetric_flag} {starting_node_flag}"
 elif application in {"spmv"}:
     graph_path = matrix_path_map[graph_name]
-    command = f"/home/ubuntu/benchmarks/spmv/spmv.hw.pdev.m5 {graph_path}"
+    command = f"{command_prefix} /home/ubuntu/benchmarks/spmv/spmv.hw.pdev.m5 {graph_path}"
 else:
     assert False, f"Unknown application: {application}"
 
@@ -352,6 +359,8 @@ print("Running the simulation")
 simulator.run()
 
 checkpoint_name = f"{application}-{graph_name}"
+if single_threaded:
+    checkpoint_name += "-single_threaded"
 simulator.save_checkpoint(Path(f"/workdir/ARTIFACTS/checkpoints/{checkpoint_name}"))
 
 print(f"Ran a total of {simulator.get_current_tick() / 1e12} simulated seconds")
