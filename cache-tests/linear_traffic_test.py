@@ -44,7 +44,7 @@ from MeshCache.components.PrebuiltMesh import PrebuiltMesh
 mesh_descriptor = PrebuiltMesh.getMesh9("Mesh9")
 
 generator = LinearGenerator(
-    num_cores=2,
+    num_cores=1,
     duration="1ms",
     rate="32GiB/s",
     max_addr=2 ** 16,
