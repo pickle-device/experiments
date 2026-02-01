@@ -48,6 +48,7 @@ generator = BFSGenerator(
     starting_node = 109638,
     is_directed = False,
     num_visitor_threads = 1,
+    max_num_responses = 50,
     clk_freq = "4GHz",
 )
 
@@ -109,7 +110,7 @@ class PickleTestBoard(TestBoard):
 
 
 board = PickleTestBoard(
-    clk_freq="1GHz",  # setting the clk period for the whole system
+    clk_freq="4GHz",  # setting the clk period for the whole system
     generator=generator,
     memory=memory,
     cache_hierarchy=mesh_cache,
