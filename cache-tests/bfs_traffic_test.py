@@ -43,12 +43,28 @@ from MeshCache.components.PrebuiltMesh import PrebuiltMesh
 
 mesh_descriptor = PrebuiltMesh.getMesh9("Mesh9")
 
+argparser = argparse.ArgumentParser(description="BFS Traffic Test")
+argparser.add_argument(
+    "--data_prefetcher",
+    type=str,
+    choices=["dmp", "none"],
+    required=True,
+    help="The data prefetcher to use in the cache hierarchy."
+)
+argparser.add_argument(
+    "--max_num_requests",
+    type=int,
+    required=True,
+    help="The maximum number of requests to simulate."
+)
+args = argparser.parse_args()
+
 generator = BFSGenerator(
-    graph_file = "/workdir/com-amazon.ungraph.txt",
-    starting_node = 109638,
+    graph_file = "/workdir/web-Stanford.txt",
+    starting_node = 1,
     is_directed = False,
     num_visitor_threads = 1,
-    max_num_responses = 50,
+    max_num_responses = args.max_num_requests,
     clk_freq = "4GHz",
 )
 
@@ -70,7 +86,7 @@ mesh_cache = MeshCache(
     l3_assoc=16,
     num_core_complexes=1,
     is_fullsystem=False,
-    data_prefetcher_class="dmp",
+    data_prefetcher_class=args.data_prefetcher,
     mesh_descriptor=mesh_descriptor,
 )
 
@@ -107,6 +123,9 @@ class PickleTestBoard(TestBoard):
                     controller=l3_only_tile.l3_slice,
                     ruby_system=self.cache_hierarchy.ruby_system,
                 )
+        for core_tile in self.cache_hierarchy.core_tiles:
+            core_tile.l1d_cache.dmp_prefetcher.stride_prefetcher_distance = 2
+            core_tile.l1d_cache.dmp_prefetcher.stride_prefetcher_degree = 8
 
 
 board = PickleTestBoard(
