@@ -57,10 +57,16 @@ argparser.add_argument(
     required=True,
     help="The maximum number of requests to simulate."
 )
+argparser.add_argument(
+    "--only_stride_prefetcher",
+    action="store_true",
+    help="Enable only stride prefetching."
+)
 args = argparser.parse_args()
 
 generator = BFSGenerator(
     graph_file = "/workdir/web-Stanford.txt",
+    #graph_file = "/workdir/roadNet-CA.txt",
     starting_node = 1,
     is_directed = False,
     num_visitor_threads = 1,
@@ -68,11 +74,12 @@ generator = BFSGenerator(
     clk_freq = "4GHz",
 )
 
+memory_size = "2GiB"
 memory = ChanneledMemory(
     dram_interface_class=DDR5_8400_4x8,
     num_channels=mesh_descriptor.get_num_mem_tiles(),
     interleaving_size=64,
-    size="2GiB",
+    size=memory_size,
 )
 
 mesh_cache = MeshCache(
@@ -123,9 +130,12 @@ class PickleTestBoard(TestBoard):
                     controller=l3_only_tile.l3_slice,
                     ruby_system=self.cache_hierarchy.ruby_system,
                 )
-        for core_tile in self.cache_hierarchy.core_tiles:
-            core_tile.l1d_cache.dmp_prefetcher.stride_prefetcher_distance = 2
-            core_tile.l1d_cache.dmp_prefetcher.stride_prefetcher_degree = 8
+        if args.data_prefetcher == "dmp":
+            for core_tile in self.cache_hierarchy.core_tiles:
+                core_tile.l1d_cache.dmp_prefetcher.stride_prefetcher_distance = 2
+                core_tile.l1d_cache.dmp_prefetcher.stride_prefetcher_degree = 16
+                core_tile.l1d_cache.dmp_prefetcher.enable_dmp_prefetching = not args.only_stride_prefetcher
+                core_tile.l1d_cache.dmp_prefetcher.memory_size = memory_size
 
 
 board = PickleTestBoard(
