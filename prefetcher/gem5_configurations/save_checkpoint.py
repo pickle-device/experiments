@@ -49,21 +49,24 @@ from m5.objects import (
     VExpress_GEM5_Foundation,
 )
 
-mesh_descriptor = PrebuiltMesh.getMesh8("Mesh8")
-
 parser = argparse.ArgumentParser()
 parser.add_argument("--application", type=str, required=True, choices={"bfs", "pr", "tc", "cc", "spmv"})
 parser.add_argument("--graph_name", type=str, required=True)
-parser.add_argument("--single_threaded", type=str, required=True, choices={"True", "False"})
-# parser.add_argument("--enable_pdev", type=str, required=True, choices=["True", "False"])
+parser.add_argument("--mesh", type=int, required=True, choices={8, 10})
 args = parser.parse_args()
 
 application = args.application
 graph_name = args.graph_name
-single_threaded = args.single_threaded == "True"
+mesh = args.mesh
 # from _m5.core import setOutputDir
 # setOutputDir(f"/workdir/ARTIFACTS/results/bfs-pickle-{graph_name}-distance-32")
 
+if mesh == 8:
+    mesh_descriptor = PrebuiltMesh.getMesh8("Mesh8")
+elif mesh == 10:
+    mesh_descriptor = PrebuiltMesh.getMesh10("Mesh10")
+else:
+    assert False, f"Unsupported mesh: {mesh}"
 num_cores = mesh_descriptor.get_num_core_tiles()
 
 fast_forward_cpu_type = CPUTypes.KVM
@@ -286,9 +289,9 @@ matrix_path_map = {
 }
 
 command_prefix = ""
-if single_threaded:
-    # here we pin the app to core 1 and run on 1 thread
-    command_prefix = "export OMP_NUM_THREADS=1; taskset -c 1"
+#if single_threaded:
+#    # here we pin the app to core 1 and run on 1 thread
+#    command_prefix = "export OMP_NUM_THREADS=1; taskset -c 1"
 
 if application in {"bfs", "pr", "tc", "cc"}:
     graph_path, direction, starting_node = graph_path_map[graph_name]
@@ -359,8 +362,7 @@ print("Running the simulation")
 simulator.run()
 
 checkpoint_name = f"{application}-{graph_name}"
-if single_threaded:
-    checkpoint_name += "-single_threaded"
+checkpoint_name += f"-mesh_{mesh}"
 simulator.save_checkpoint(Path(f"/workdir/ARTIFACTS/checkpoints/{checkpoint_name}"))
 
 print(f"Ran a total of {simulator.get_current_tick() / 1e12} simulated seconds")

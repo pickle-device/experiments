@@ -50,11 +50,9 @@ from m5.objects import (
     VExpress_GEM5_Foundation,
 )
 
-mesh_descriptor = PrebuiltMesh.getMesh8("Mesh8")
-
 prefetch_mode_map = {
-    "single_prefetch": 1,
-    "bulk_prefetch": 2,
+    "single": 1,
+    "bulk": 2,
 }
 
 parser = argparse.ArgumentParser()
@@ -75,9 +73,9 @@ parser.add_argument(
     "--private_cache_prefetcher",
     type=str,
     required=True,
-    choices=["none", "stride", "imp", "ampm", "sms", "bop", "multiv1"],
+    choices=["none", "stride", "dmp", "imp", "ampm", "sms", "bop", "multiv1"],
 )
-parser.add_argument("--single_threaded", type=str, required=True, choices={"True", "False"})
+parser.add_argument("--mesh", type=int, required=True, choices={8, 10})
 args = parser.parse_args()
 
 application = args.application
@@ -94,11 +92,11 @@ prefetch_drop_distance = args.prefetch_drop_distance
 delegate_last_layer_prefetch = args.delegate_last_layer_prefetch
 concurrent_work_item_capacity = args.concurrent_work_item_capacity
 pdev_num_tbes = args.pdev_num_tbes
-single_threaded = args.single_threaded == "True"
+mesh = args.mesh
 
+print(f"Mesh: PrebuiltMesh{mesh}")
 print(f"Application: {application}")
 print(f"Graph name: {graph_name}")
-print(f"Single threaded: {single_threaded}")
 print(f"Enable Pickle Device: {enable_pdev}")
 print(f"Prefetch Distance: {prefetch_distance}, Offset: {offset_from_pf_hint}, Drop Distance: {prefetch_drop_distance}")
 print(f"Prefetch Mode: {prefetch_mode}, Chunk Size: {bulk_prefetch_chunk_size}, Prefetches Per Hint: {bulk_prefetch_num_prefetches_per_hint}")
@@ -108,6 +106,13 @@ print(f"Num PDEV TBEs: {pdev_num_tbes}")
 
 # from _m5.core import setOutputDir
 # setOutputDir(f"/workdir/ARTIFACTS/results/bfs-pickle-{graph_name}-distance-32")
+
+if mesh == 8:
+    mesh_descriptor = PrebuiltMesh.getMesh8("Mesh8")
+elif mesh == 10:
+    mesh_descriptor = PrebuiltMesh.getMesh10("Mesh10")
+else:
+    assert False, f"Unsupported mesh: {mesh}"
 
 num_cores = mesh_descriptor.get_num_core_tiles()
 
@@ -121,7 +126,7 @@ def choose_memory_size(application, graph_name):
     if (application, graph_name) in special_memory_requirement:
         return special_memory_requirement[(application, graph_name)]
     return "4GiB"
-
+memory_size = choose_memory_size(application, graph_name)
 
 mesh_cache = MeshCacheWithPickleDevice(
     l1i_size="32KiB",
@@ -146,7 +151,7 @@ memory = ChanneledMemory(
     dram_interface_class=DDR5_8400_4x8,
     num_channels=mesh_descriptor.get_num_mem_tiles(),
     interleaving_size=64,
-    size=choose_memory_size(application, graph_name),
+    size=memory_size,
 )
 
 processor = SimpleProcessor(cpu_type=CPUTypes.O3, isa=ISA.ARM, num_cores=num_cores)
@@ -249,6 +254,8 @@ class PickleArmBoard(ArmBoard):
             core.numIQEntries = 512
             core.fetchQueueSize = 256
         super()._pre_instantiate()
+        for core_tile in self.cache_hierarchy.core_tiles:
+            core_tile.l1d_cache.dmp_prefetcher.memory_size=memory_size
         # add the data movement stats
         for core_tile in self.cache_hierarchy.core_tiles:
             core_tile.l1d_cache.data_tracker = RubyDataMovementTracker(
@@ -396,9 +403,9 @@ matrix_path_map = {
 }
 
 command_prefix = ""
-if single_threaded:
-    # here we pin the app to core 1 and run on 1 thread
-    command_prefix = "export OMP_NUM_THREADS=1; taskset -c 1"
+#if single_threaded:
+#    # here we pin the app to core 1 and run on 1 thread
+#    command_prefix = "export OMP_NUM_THREADS=1; taskset -c 1"
 
 if application in {"bfs", "pr", "tc", "cc"}:
     graph_path, direction, starting_node = graph_path_map[graph_name]
@@ -422,8 +429,7 @@ else:
     assert False, f"Unknown application: {application}"
 
 checkpoint_name = f"{application}-{graph_name}"
-if single_threaded:
-    checkpoint_name += "-single_threaded"
+checkpoint_name += f"-mesh_{mesh}"
 checkpoint_path = Path(f"/workdir/ARTIFACTS/checkpoints/{checkpoint_name}")
 board.set_kernel_disk_workload(
     kernel=CustomResource("/workdir/ARTIFACTS/vmlinux-6.6.71"),
