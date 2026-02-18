@@ -40,6 +40,8 @@ from m5.objects import (
     PicklePrefetcher,
     TAGE_SC_L_64KB,
     RubyDataMovementTracker,
+    ProgramProgressTracker,
+    ProgramProgressTrackerAgent,
 )
 
 from m5.objects import (
@@ -254,8 +256,23 @@ class PickleArmBoard(ArmBoard):
             core.numIQEntries = 512
             core.fetchQueueSize = 256
         super()._pre_instantiate()
+        if application in {"bfs"}:
+            self.pc_tracker_agents = [
+                ProgramProgressTrackerAgent(
+                    associated_core=core,
+                    manager=core
+                )
+                for core in all_cores
+            ]
+            self.pc_tracker = ProgramProgressTracker(
+                tracker_agents=self.pc_tracker_agents,
+                tracking_pc=0x407b84,  # work_queue access in bfs
+                tracking_interval=100_000,  # report every 100K encounters
+            )
         for core_tile in self.cache_hierarchy.core_tiles:
-            core_tile.l1d_cache.dmp_prefetcher.memory_size=memory_size
+            if private_cache_prefetcher == "dmp":
+                core_tile.l1d_cache.dmp_prefetcher.stride_prefetcher_degree = 8
+                core_tile.l1d_cache.dmp_prefetcher.tracked_items_per_target_table_entry = 64
         # add the data movement stats
         for core_tile in self.cache_hierarchy.core_tiles:
             core_tile.l1d_cache.data_tracker = RubyDataMovementTracker(
@@ -525,6 +542,7 @@ print("Running the simulation")
 # We start the simulation.
 simulator.run(1)
 simulator.run(10 ** 18)
+#simulator.run(5*(10**8))
 
 print(f"Ran a total of {simulator.get_current_tick() / 1e12} simulated seconds")
 
