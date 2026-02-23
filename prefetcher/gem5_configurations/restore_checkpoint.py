@@ -271,8 +271,7 @@ class PickleArmBoard(ArmBoard):
             )
         for core_tile in self.cache_hierarchy.core_tiles:
             if private_cache_prefetcher == "dmp":
-                core_tile.l1d_cache.dmp_prefetcher.stride_prefetcher_degree = 8
-                core_tile.l1d_cache.dmp_prefetcher.tracked_items_per_target_table_entry = 64
+                core_tile.l1d_cache.dmp_prefetcher.tracked_items_per_target_table_entry = 16
         # add the data movement stats
         for core_tile in self.cache_hierarchy.core_tiles:
             core_tile.l1d_cache.data_tracker = RubyDataMovementTracker(
@@ -542,7 +541,7 @@ print("Running the simulation")
 # We start the simulation.
 simulator.run(1)
 simulator.run(10 ** 18)
-#simulator.run(5*(10**8))
+#simulator.run(1*(10**9))
 
 print(f"Ran a total of {simulator.get_current_tick() / 1e12} simulated seconds")
 
