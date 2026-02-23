@@ -50,13 +50,11 @@ from m5.objects import (
     VExpress_GEM5_Foundation,
 )
 
-mesh_descriptor = PrebuiltMesh.getMesh8("Mesh8")
-
 parser = argparse.ArgumentParser()
 parser.add_argument("--application", type=str, required=True, choices={"bfs", "pr", "tc", "cc", "spmv"})
 parser.add_argument("--graph_name", type=str, required=True)
 parser.add_argument("--llc_capacity", type=str, required=True, choices={"32MiB", "96MiB", "6GiB"})
-parser.add_argument("--single_threaded", type=str, required=True, choices={"True", "False"})
+parser.add_argument("--mesh", type=int, required=True, choices={8, 10})
 args = parser.parse_args()
 
 application = args.application
@@ -70,7 +68,14 @@ prefetch_drop_distance = 0
 delegate_last_layer_prefetch = False
 concurrent_work_item_capacity = 64
 pdev_num_tbes = 1024
-single_threaded = args.single_threaded == "True"
+mesh = args.mesh
+
+if mesh == 8:
+    mesh_descriptor = PrebuiltMesh.getMesh8("Mesh8")
+elif mesh == 10:
+    mesh_descriptor = PrebuiltMesh.getMesh10("Mesh10")
+else:
+    assert False, f"Unsupported mesh: {mesh}"
 
 llc_capacity = args.llc_capacity
 llc_assoc_map = {
