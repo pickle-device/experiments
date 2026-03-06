@@ -50,7 +50,7 @@ from m5.objects import (
 )
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--application", type=str, required=True, choices={"bfs", "pr", "tc", "cc", "spmv"})
+parser.add_argument("--application", type=str, required=True, choices={"bc", "bfs", "cc", "pr", "tc", "spmv"})
 parser.add_argument("--graph_name", type=str, required=True)
 parser.add_argument("--mesh", type=int, required=True, choices={8, 10})
 args = parser.parse_args()
@@ -278,6 +278,7 @@ graph_path_map = {
     ),  # 1791489 / 28508141
     "test5": ("/home/ubuntu/graphs/synth_5.el", "undirected", None),
     "test10": ("/home/ubuntu/graphs/synth_10.el", "undirected", None),
+    "test15": ("/home/ubuntu/graphs/synth_15.el", "undirected", None),
 }
 
 matrix_path_map = {
@@ -293,12 +294,12 @@ command_prefix = ""
 #    # here we pin the app to core 1 and run on 1 thread
 #    command_prefix = "export OMP_NUM_THREADS=1; taskset -c 1"
 
-if application in {"bfs", "pr", "tc", "cc"}:
+if application in {"bc", "bfs", "pr", "tc", "cc"}:
     graph_path, direction, starting_node = graph_path_map[graph_name]
     is_directed_graph = direction == "directed"
     symmetric_flag = "-s" if not is_directed_graph else ""
     starting_node_flag = ""
-    if application == "bfs": # we need a starting node in BFS to reliably walk through a large cluster
+    if application in {"bc", "bfs"}: # we need a starting node in BFS to reliably walk through a large cluster
         if not starting_node:
             starting_node_flag = ""
         else:
@@ -316,7 +317,7 @@ else:
 
 board.set_kernel_disk_workload(
     kernel=CustomResource("/workdir/ARTIFACTS/linux-6.6.71/vmlinux"),
-    disk_image=CustomDiskImageResource("/workdir/ARTIFACTS/arm64.img.v4"),
+    disk_image=CustomDiskImageResource("/workdir/ARTIFACTS/arm64.img.v5"),
     #bootloader=obtain_resource("arm64-bootloader", resource_version="1.0.0"),
     bootloader=CustomResource("/workdir/.cache/gem5/arm64-bootloader"),
     readfile_contents=command,
