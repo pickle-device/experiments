@@ -58,7 +58,7 @@ prefetch_mode_map = {
 }
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--application", type=str, required=True, choices={"bfs", "pr", "tc", "cc", "spmv"})
+parser.add_argument("--application", type=str, required=True, choices={"bc", "bfs", "pr", "tc", "cc", "spmv"})
 parser.add_argument("--graph_name", type=str, required=True)
 parser.add_argument("--enable_pdev", type=str, required=True, choices={"True", "False"})
 parser.add_argument("--pickle_cache_size", type=str, required=True, help="Prefetcher cache size, e.g., 4KiB")
@@ -75,7 +75,7 @@ parser.add_argument(
     "--private_cache_prefetcher",
     type=str,
     required=True,
-    choices=["none", "stride", "dmp", "imp", "ampm", "sms", "bop", "multiv1"],
+    choices=["none", "stride", "dmp", "dmp_with_page_walk", "imp", "ampm", "sms", "bop", "multiv1"],
 )
 parser.add_argument("--mesh", type=int, required=True, choices={8, 10})
 args = parser.parse_args()
@@ -89,6 +89,10 @@ prefetch_mode = prefetch_mode_map[args.prefetch_mode]
 bulk_prefetch_chunk_size = args.bulk_prefetch_chunk_size
 bulk_prefetch_num_prefetches_per_hint = args.bulk_prefetch_num_prefetches_per_hint
 private_cache_prefetcher = args.private_cache_prefetcher
+enable_core_mmu_ptw_for_prefetches = False
+if private_cache_prefetcher == "dmp_with_page_walk":
+    private_cache_prefetcher = "dmp"
+    enable_core_mmu_ptw_for_prefetches = True
 offset_from_pf_hint = args.offset_from_pf_hint
 prefetch_drop_distance = args.prefetch_drop_distance
 delegate_last_layer_prefetch = args.delegate_last_layer_prefetch
@@ -99,6 +103,7 @@ mesh = args.mesh
 print(f"Mesh: PrebuiltMesh{mesh}")
 print(f"Application: {application}")
 print(f"Graph name: {graph_name}")
+print(f"Private Cache Prefetcher: {private_cache_prefetcher}, Enable core MMU page walk for prefetches: {enable_core_mmu_ptw_for_prefetches}")
 print(f"Enable Pickle Device: {enable_pdev}")
 print(f"Prefetch Distance: {prefetch_distance}, Offset: {offset_from_pf_hint}, Drop Distance: {prefetch_drop_distance}")
 print(f"Prefetch Mode: {prefetch_mode}, Chunk Size: {bulk_prefetch_chunk_size}, Prefetches Per Hint: {bulk_prefetch_num_prefetches_per_hint}")
@@ -130,6 +135,16 @@ def choose_memory_size(application, graph_name):
     return "4GiB"
 memory_size = choose_memory_size(application, graph_name)
 
+def getNumPrefetchGeneratorsForApplication(application):
+    return {
+        "bc": 2,
+        "bfs": 1,
+        "cc": 1,
+        "pr": 1,
+        "tc": 1,
+        "spmv": 1
+    }[application]
+
 mesh_cache = MeshCacheWithPickleDevice(
     l1i_size="32KiB",
     l1i_assoc=8,
@@ -158,7 +173,10 @@ memory = ChanneledMemory(
 
 processor = SimpleProcessor(cpu_type=CPUTypes.O3, isa=ISA.ARM, num_cores=num_cores)
 
-
+tracking_pc = {
+    "bc": 0x40b8e4,   # queue access in bc
+    "bfs": 0x407b84,  # work_queue access in bfs
+}
 class PickleArmBoard(ArmBoard):
     def __init__(self, clk_freq, processor, memory, cache_hierarchy, release, platform):
         super().__init__(
@@ -206,7 +224,7 @@ class PickleArmBoard(ArmBoard):
         self.pickle_device_request_manager = [
             PickleDeviceRequestManager() for i in range(num_PD_tiles)
         ]
-        num_generators = 1
+        num_generators = getNumPrefetchGeneratorsForApplication(application)
         self.pickle_device_prefetchers = [
             PicklePrefetcher(
                 software_hint_prefetch_distance=prefetch_distance,
@@ -255,6 +273,9 @@ class PickleArmBoard(ArmBoard):
             core.SQEntries = 128
             core.numIQEntries = 512
             core.fetchQueueSize = 256
+        if enable_core_mmu_ptw_for_prefetches:
+            for core in all_cores:
+                core.mmu.enable_page_walk_on_prefetch_request_tlb_miss = True
         super()._pre_instantiate()
         if application in {"bfs"}:
             self.pc_tracker_agents = [
@@ -266,8 +287,8 @@ class PickleArmBoard(ArmBoard):
             ]
             self.pc_tracker = ProgramProgressTracker(
                 tracker_agents=self.pc_tracker_agents,
-                tracking_pc=0x407b84,  # work_queue access in bfs
-                tracking_interval=100_000,  # report every 100K encounters
+                tracking_pc=0 if application not in tracking_pc else tracking_pc[application],
+                tracking_interval=1,  # report every 100K encounters
             )
         for core_tile in self.cache_hierarchy.core_tiles:
             if private_cache_prefetcher == "dmp":
@@ -408,6 +429,7 @@ graph_path_map = {
     ),  # 1791489 / 28508141
     "test5": ("/home/ubuntu/graphs/synth_5.el", "undirected", None),
     "test10": ("/home/ubuntu/graphs/synth_10.el", "undirected", None),
+    "test15": ("/home/ubuntu/graphs/synth_15.el", "undirected", None),
 }
 
 matrix_path_map = {
@@ -423,12 +445,12 @@ command_prefix = ""
 #    # here we pin the app to core 1 and run on 1 thread
 #    command_prefix = "export OMP_NUM_THREADS=1; taskset -c 1"
 
-if application in {"bfs", "pr", "tc", "cc"}:
+if application in {"bc", "bfs", "pr", "tc", "cc"}:
     graph_path, direction, starting_node = graph_path_map[graph_name]
     is_directed_graph = direction == "directed"
     symmetric_flag = "-s" if not is_directed_graph else ""
     starting_node_flag = ""
-    if application == "bfs": # we need a starting node in BFS to reliably walk through a large cluster
+    if application in {"bc", "bfs"}: # we need a starting node in BFS to reliably walk through a large cluster
         if not starting_node:
             starting_node_flag = ""
         else:
