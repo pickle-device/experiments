@@ -1,10 +1,9 @@
 #!/bin/bash
 
-#applications=("bfs" "pr")
-applications=("bfs" "tc" "cc" "pr")
+applications=("bfs" "tc" "cc" "pr" "bc")
 meshes=("8" "10")
 #graph_names=("test5" "test10" "amazon" "as_skitter" "gplus" "higgs" "livejournal" "orkut" "pokec" "roadNetCA" "twitch" "youtube" "web_berkstan" "web_google" "wiki_talk" "wiki_topcats")
-graph_names=("test5" "test10" "amazon" "as_skitter" "livejournal" "orkut" "pokec" "roadNetCA" "youtube" "web_berkstan" "web_google" "wiki_talk")
+graph_names=("test5" "test10" "test15" "amazon" "as_skitter" "livejournal" "orkut" "pokec" "roadNetCA" "web_berkstan" "web_google" "wiki_talk" "youtube")
 OUTPUT_FOLDER="/workdir/ARTIFACTS/results_v8/"
 
 for application in "${applications[@]}"
