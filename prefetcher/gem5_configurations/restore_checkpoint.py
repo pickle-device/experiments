@@ -175,8 +175,9 @@ processor = SimpleProcessor(cpu_type=CPUTypes.O3, isa=ISA.ARM, num_cores=num_cor
 
 tracking_pc = {
     "bc": 0x40b8e4,   # queue access in bc
-    "bfs": 0x407b84,  # work_queue access in bfs
+    "bfs": 0x407e20,  # work_queue access in bfs
 }
+
 class PickleArmBoard(ArmBoard):
     def __init__(self, clk_freq, processor, memory, cache_hierarchy, release, platform):
         super().__init__(
@@ -277,7 +278,7 @@ class PickleArmBoard(ArmBoard):
             for core in all_cores:
                 core.mmu.enable_page_walk_on_prefetch_request_tlb_miss = True
         super()._pre_instantiate()
-        if application in {"bfs"}:
+        if application in tracking_pc:
             self.pc_tracker_agents = [
                 ProgramProgressTrackerAgent(
                     associated_core=core,
@@ -441,9 +442,6 @@ matrix_path_map = {
 }
 
 command_prefix = ""
-#if single_threaded:
-#    # here we pin the app to core 1 and run on 1 thread
-#    command_prefix = "export OMP_NUM_THREADS=1; taskset -c 1"
 
 if application in {"bc", "bfs", "pr", "tc", "cc"}:
     graph_path, direction, starting_node = graph_path_map[graph_name]
@@ -466,8 +464,7 @@ elif application in {"spmv"}:
 else:
     assert False, f"Unknown application: {application}"
 
-checkpoint_name = f"{application}-{graph_name}"
-checkpoint_name += f"-mesh_{mesh}"
+checkpoint_name = f"{application}-{graph_name}-mesh_{mesh}"
 checkpoint_path = Path(f"/workdir/ARTIFACTS/checkpoints/{checkpoint_name}")
 board.set_kernel_disk_workload(
     kernel=CustomResource("/workdir/ARTIFACTS/vmlinux-6.6.71"),
@@ -563,7 +560,6 @@ print("Running the simulation")
 # We start the simulation.
 simulator.run(1)
 simulator.run(10 ** 18)
-#simulator.run(1*(10**9))
 
 print(f"Ran a total of {simulator.get_current_tick() / 1e12} simulated seconds")
 

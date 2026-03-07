@@ -40,6 +40,8 @@ from m5.objects import (
     PicklePrefetcher,
     TAGE_SC_L_64KB,
     RubyDataMovementTracker,
+    ProgramProgressTracker,
+    ProgramProgressTrackerAgent,
 )
 
 from m5.objects import (
@@ -50,8 +52,13 @@ from m5.objects import (
     VExpress_GEM5_Foundation,
 )
 
+prefetch_mode_map = {
+    "single": 1,
+    "bulk": 2,
+}
+
 parser = argparse.ArgumentParser()
-parser.add_argument("--application", type=str, required=True, choices={"bfs", "pr", "tc", "cc", "spmv"})
+parser.add_argument("--application", type=str, required=True, choices={"bc", "bfs", "pr", "tc", "cc", "spmv"})
 parser.add_argument("--graph_name", type=str, required=True)
 parser.add_argument("--llc_capacity", type=str, required=True, choices={"32MiB", "96MiB", "6GiB"})
 parser.add_argument("--mesh", type=int, required=True, choices={8, 10})
@@ -62,20 +69,17 @@ graph_name = args.graph_name
 enable_pdev = False
 pickle_cache_size = "256KiB"
 prefetch_distance = 0
+prefetch_mode = prefetch_mode_map["single"]
+bulk_prefetch_chunk_size = 1
+bulk_prefetch_num_prefetches_per_hint = 1
 private_cache_prefetcher = "none"
+enable_core_mmu_ptw_for_prefetches = False
 offset_from_pf_hint = 0
 prefetch_drop_distance = 0
 delegate_last_layer_prefetch = False
 concurrent_work_item_capacity = 64
 pdev_num_tbes = 1024
 mesh = args.mesh
-
-if mesh == 8:
-    mesh_descriptor = PrebuiltMesh.getMesh8("Mesh8")
-elif mesh == 10:
-    mesh_descriptor = PrebuiltMesh.getMesh10("Mesh10")
-else:
-    assert False, f"Unsupported mesh: {mesh}"
 
 llc_capacity = args.llc_capacity
 llc_assoc_map = {
@@ -87,7 +91,6 @@ llc_assoc = llc_assoc_map[llc_capacity]
 
 print(f"Application: {application}")
 print(f"Graph name: {graph_name}")
-print(f"Single threaded: {single_threaded}")
 print(f"Enable Pickle Device: {enable_pdev}")
 print(f"Prefetch Distance: {prefetch_distance}, Offset: {offset_from_pf_hint}, Drop Distance: {prefetch_drop_distance}")
 print(f"Delegate to LLC Agent: {delegate_last_layer_prefetch}")
@@ -96,6 +99,13 @@ print(f"Num PDEV TBEs: {pdev_num_tbes}")
 
 # from _m5.core import setOutputDir
 # setOutputDir(f"/workdir/ARTIFACTS/results/bfs-pickle-{graph_name}-distance-32")
+
+if mesh == 8:
+    mesh_descriptor = PrebuiltMesh.getMesh8("Mesh8")
+elif mesh == 10:
+    mesh_descriptor = PrebuiltMesh.getMesh10("Mesh10")
+else:
+    assert False, f"Unsupported mesh: {mesh}"
 
 num_cores = mesh_descriptor.get_num_core_tiles()
 
@@ -109,6 +119,7 @@ def choose_memory_size(application, graph_name):
     if (application, graph_name) in special_memory_requirement:
         return special_memory_requirement[(application, graph_name)]
     return "4GiB"
+memory_size = choose_memory_size(application, graph_name)
 
 
 mesh_cache = MeshCacheWithPickleDevice(
@@ -134,11 +145,15 @@ memory = ChanneledMemory(
     dram_interface_class=DDR5_8400_4x8,
     num_channels=mesh_descriptor.get_num_mem_tiles(),
     interleaving_size=64,
-    size=choose_memory_size(application, graph_name),
+    size=memory_size,
 )
 
 processor = SimpleProcessor(cpu_type=CPUTypes.O3, isa=ISA.ARM, num_cores=num_cores)
 
+tracking_pc = {
+    "bc": 0x40b8e4,   # queue access in bc
+    "bfs": 0x407e20,  # work_queue access in bfs
+}
 
 class PickleArmBoard(ArmBoard):
     def __init__(self, clk_freq, processor, memory, cache_hierarchy, release, platform):
@@ -187,13 +202,15 @@ class PickleArmBoard(ArmBoard):
         self.pickle_device_request_manager = [
             PickleDeviceRequestManager() for i in range(num_PD_tiles)
         ]
-        num_generators = 1 if application == "bfs" else 2
         self.pickle_device_prefetchers = [
             PicklePrefetcher(
                 software_hint_prefetch_distance=prefetch_distance,
                 prefetch_distance_offset_from_software_hint=offset_from_pf_hint,
+                prefetch_mode=prefetch_mode,
+                bulk_prefetch_chunk_size=bulk_prefetch_chunk_size,
+                bulk_prefetch_num_prefetches_per_hint=bulk_prefetch_num_prefetches_per_hint,
                 num_cores=len(all_cores),
-                expected_number_of_prefetch_generators=num_generators,
+                expected_number_of_prefetch_generators=1,
                 concurrent_work_item_capacity=concurrent_work_item_capacity,
                 prefetch_dropping_distance=prefetch_drop_distance,
                 delegate_last_layer_prefetches_to_llc_agents=delegate_last_layer_prefetch
@@ -234,6 +251,19 @@ class PickleArmBoard(ArmBoard):
             core.numIQEntries = 512
             core.fetchQueueSize = 256
         super()._pre_instantiate()
+        if application in tracking_pc:
+            self.pc_tracker_agents = [
+                ProgramProgressTrackerAgent(
+                    associated_core=core,
+                    manager=core
+                )
+                for core in all_cores
+            ]
+            self.pc_tracker = ProgramProgressTracker(
+                tracker_agents=self.pc_tracker_agents,
+                tracking_pc=0 if application not in tracking_pc else tracking_pc[application],
+                tracking_interval=100_000,  # report every 100K encounters
+            )
         # add the data movement stats
         for core_tile in self.cache_hierarchy.core_tiles:
             core_tile.l1d_cache.data_tracker = RubyDataMovementTracker(
@@ -370,6 +400,7 @@ graph_path_map = {
     ),  # 1791489 / 28508141
     "test5": ("/home/ubuntu/graphs/synth_5.el", "undirected", None),
     "test10": ("/home/ubuntu/graphs/synth_10.el", "undirected", None),
+    "test15": ("/home/ubuntu/graphs/synth_15.el", "undirected", None),
 }
 
 matrix_path_map = {
@@ -381,16 +412,13 @@ matrix_path_map = {
 }
 
 command_prefix = ""
-if single_threaded:
-    # here we pin the app to core 1 and run on 1 thread
-    command_prefix = "export OMP_NUM_THREADS=1; taskset -c 1"
 
-if application in {"bfs", "pr", "tc", "cc"}:
+if application in {"bc", "bfs", "pr", "tc", "cc"}:
     graph_path, direction, starting_node = graph_path_map[graph_name]
     is_directed_graph = direction == "directed"
     symmetric_flag = "-s" if not is_directed_graph else ""
     starting_node_flag = ""
-    if application == "bfs": # we need a starting node in BFS to reliably walk through a large cluster
+    if application in {"bc", "bfs"}: # we need a starting node in BFS to reliably walk through a large cluster
         if not starting_node:
             starting_node_flag = ""
         else:
@@ -406,13 +434,11 @@ elif application in {"spmv"}:
 else:
     assert False, f"Unknown application: {application}"
 
-checkpoint_name = f"{application}-{graph_name}"
-if single_threaded:
-    checkpoint_name += "-single_threaded"
+checkpoint_name = f"{application}-{graph_name}-mesh_{mesh}"
 checkpoint_path = Path(f"/workdir/ARTIFACTS/checkpoints/{checkpoint_name}")
 board.set_kernel_disk_workload(
     kernel=CustomResource("/workdir/ARTIFACTS/vmlinux-6.6.71"),
-    disk_image=CustomDiskImageResource("/workdir/ARTIFACTS/arm64.img.v4"),
+    disk_image=CustomDiskImageResource("/workdir/ARTIFACTS/arm64.img.v5"),
     #bootloader=obtain_resource("arm64-bootloader", resource_version="1.0.0"),
     bootloader=CustomResource("/workdir/.cache/gem5/arm64-bootloader"),
     checkpoint=checkpoint_path,
