@@ -1,12 +1,11 @@
 #!/bin/bash
 
-#applications=("bfs" "cc" "tc" "pr")
-applications=("bfs" "cc")
-graph_names=("amazon" "as_skitter" "livejournal" "orkut" "pokec" "roadNetCA" "youtube" "web_berkstan" "web_google" "wiki_talk")
+applications=("bc" "bfs" "cc" "tc" "pr")
+graph_names=("as_skitter" "livejournal" "orkut" "pokec" "roadNetCA" "youtube" "web_berkstan" "web_google" "wiki_talk")
 OUTPUT_FOLDER="/workdir/ARTIFACTS/results/gapbs/"
 
 mesh=8
-private_cache_prefetchers=("imp" "stride" "dmp")
+private_cache_prefetchers=("stride" "dmp_with_page_walk")
 PREFETCH_DISTANCE_DROP_DISTANCE_PAIRS=( "32:16" )
 PDEV_TBES=(1024)
 PREFETCH_AGENT=("True")
@@ -31,7 +30,7 @@ do
                     do
                         for pickle_cache_size in "${PICKLE_CACHE_SIZE[@]}"
                         do
-                            if [[ "$application" == "bfs" ]]; then
+                            if [[ "$application" == "bfs" || "$application" == "bc" ]]; then
                                 OFFSET=16
                                 prefetch_distance=$((pf_distance+16))
                             else

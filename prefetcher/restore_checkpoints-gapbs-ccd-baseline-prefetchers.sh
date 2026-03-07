@@ -1,9 +1,10 @@
 #!/bin/bash
 
-private_cache_prefetchers=("stride" "imp" "dmp")
+private_cache_prefetchers=("stride" "dmp_with_page_walk")
 
-applications=("bfs" "cc" "tc" "pr")
-graph_names=("amazon" "as_skitter" "livejournal" "orkut" "pokec" "roadNetCA" "youtube" "web_berkstan" "web_google" "wiki_talk")
+applications=("bfs" "cc")
+#graph_names=("amazon" "as_skitter" "livejournal" "orkut" "pokec" "roadNetCA" "youtube" "web_berkstan" "web_google" "wiki_talk")
+graph_names=("as_skitter" "livejournal" "orkut" "pokec" "roadNetCA" "youtube" "web_berkstan" "web_google" "wiki_talk")
 OUTPUT_FOLDER="/workdir/ARTIFACTS/results/gapbs/"
 mesh=8
 

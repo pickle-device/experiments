@@ -1,9 +1,9 @@
 #!/bin/bash
 
-applications=("bfs" "cc" "tc" "pr")
-graph_names=("amazon" "as_skitter" "livejournal" "orkut" "pokec" "roadNetCA" "youtube" "web_berkstan" "web_google" "wiki_talk")
+applications=("bc" "bfs" "cc" "tc" "pr")
+graph_names=("as_skitter" "livejournal" "orkut" "pokec" "roadNetCA" "youtube" "web_berkstan" "web_google" "wiki_talk")
 OUTPUT_FOLDER="/workdir/ARTIFACTS/results/gapbs/"
-LLC_CAPACITIES=("96MiB" "6GiB")
+LLC_CAPACITIES=("6GiB")
 mesh=8
 
 for application in "${applications[@]}"

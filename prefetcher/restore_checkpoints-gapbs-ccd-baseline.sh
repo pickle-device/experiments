@@ -1,7 +1,7 @@
 #!/bin/bash
 
-applications=("bfs" "cc" "tc" "pr")
-graph_names=("amazon" "as_skitter" "livejournal" "orkut" "pokec" "roadNetCA" "youtube" "web_berkstan" "web_google" "wiki_talk")
+applications=("bc" "bfs" "cc" "tc" "pr")
+graph_names=("as_skitter" "livejournal" "orkut" "pokec" "roadNetCA" "youtube" "web_berkstan" "web_google" "wiki_talk")
 OUTPUT_FOLDER="/workdir/ARTIFACTS/results/gapbs/"
 mesh=8
 
@@ -26,6 +26,9 @@ do
             --concurrent_work_item_capacity 64 \
             --pdev_num_tbes 1024 \
             --private_cache_prefetcher=none \
+            --prefetch_mode single \
+            --bulk_prefetch_chunk_size 1 \
+            --bulk_prefetch_num_prefetches_per_hint 1 \
             --mesh $mesh &
     done
 done
