@@ -288,7 +288,7 @@ class PickleArmBoard(ArmBoard):
             self.pc_tracker = ProgramProgressTracker(
                 tracker_agents=self.pc_tracker_agents,
                 tracking_pc=0 if application not in tracking_pc else tracking_pc[application],
-                tracking_interval=1,  # report every 100K encounters
+                tracking_interval=100_000,  # report every 100K encounters
             )
         for core_tile in self.cache_hierarchy.core_tiles:
             if private_cache_prefetcher == "dmp":
@@ -471,7 +471,7 @@ checkpoint_name += f"-mesh_{mesh}"
 checkpoint_path = Path(f"/workdir/ARTIFACTS/checkpoints/{checkpoint_name}")
 board.set_kernel_disk_workload(
     kernel=CustomResource("/workdir/ARTIFACTS/vmlinux-6.6.71"),
-    disk_image=CustomDiskImageResource("/workdir/ARTIFACTS/arm64.img.v4"),
+    disk_image=CustomDiskImageResource("/workdir/ARTIFACTS/arm64.img.v5"),
     #bootloader=obtain_resource("arm64-bootloader", resource_version="1.0.0"),
     bootloader=CustomResource("/workdir/.cache/gem5/arm64-bootloader"),
     checkpoint=checkpoint_path,
