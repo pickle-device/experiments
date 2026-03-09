@@ -58,7 +58,7 @@ prefetch_mode_map = {
 }
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--application", type=str, required=True, choices={"bc", "bfs", "pr", "tc", "cc", "spmv"})
+parser.add_argument("--application", type=str, required=True, choices={"bc", "bfs", "cc", "pr", "sssp", "tc", "spmv"})
 parser.add_argument("--graph_name", type=str, required=True)
 parser.add_argument("--enable_pdev", type=str, required=True, choices={"True", "False"})
 parser.add_argument("--pickle_cache_size", type=str, required=True, help="Prefetcher cache size, e.g., 4KiB")
@@ -141,6 +141,7 @@ def getNumPrefetchGeneratorsForApplication(application):
         "bfs": 1,
         "cc": 1,
         "pr": 1,
+        "sssp": 3,
         "tc": 1,
         "spmv": 1
     }[application]
@@ -443,12 +444,12 @@ matrix_path_map = {
 
 command_prefix = ""
 
-if application in {"bc", "bfs", "pr", "tc", "cc"}:
+if application in {"bc", "bfs", "cc", "pr", "sssp", "tc"}:
     graph_path, direction, starting_node = graph_path_map[graph_name]
     is_directed_graph = direction == "directed"
     symmetric_flag = "-s" if not is_directed_graph else ""
     starting_node_flag = ""
-    if application in {"bc", "bfs"}: # we need a starting node in BFS to reliably walk through a large cluster
+    if application in {"bc", "bfs", "sssp"}: # we need a starting node in BFS to reliably walk through a large cluster
         if not starting_node:
             starting_node_flag = ""
         else:
