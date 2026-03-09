@@ -1,7 +1,6 @@
 #!/bin/bash
 
-#applications=("bfs" "tc" "cc" "pr" "bc")
-applications=("sssp")
+applications=("bc" "bfs" "tc" "cc" "pr" "sssp")
 meshes=("8" "10")
 #graph_names=("test5" "test10" "amazon" "as_skitter" "gplus" "higgs" "livejournal" "orkut" "pokec" "roadNetCA" "twitch" "youtube" "web_berkstan" "web_google" "wiki_talk" "wiki_topcats")
 graph_names=("test5" "test10" "test15" "amazon" "as_skitter" "livejournal" "orkut" "pokec" "roadNetCA" "web_berkstan" "web_google" "wiki_talk" "youtube")
