@@ -2,15 +2,22 @@
 
 private_cache_prefetchers=("stride" "dmp_with_page_walk")
 
-applications=("bfs" "cc")
-#graph_names=("amazon" "as_skitter" "livejournal" "orkut" "pokec" "roadNetCA" "youtube" "web_berkstan" "web_google" "wiki_talk")
+applications=("bc" "bfs" "cc" "pr" "sssp" "tc")
 graph_names=("as_skitter" "livejournal" "orkut" "pokec" "roadNetCA" "youtube" "web_berkstan" "web_google" "wiki_talk")
+graph_names_tc=("as_skitter" "roadNetCA" "youtube")
 OUTPUT_FOLDER="/workdir/ARTIFACTS/results/gapbs/"
 mesh=8
 
 for application in "${applications[@]}"
 do
-    for graph_name in "${graph_names[@]}"
+    # for tc, we only run a subset of the graphs since tc only works with
+    # undirected graphs
+    if [[ "$application" == "tc" ]]; then
+        actual_graph_names=("${graph_names_tc[@]}")
+    else
+        actual_graph_names=("${graph_names[@]}")
+    fi
+    for graph_name in "${actual_graph_names[@]}"
     do
         for private_cache_prefetcher in "${private_cache_prefetchers[@]}"
         do

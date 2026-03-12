@@ -1,13 +1,21 @@
 #!/bin/bash
 
-applications=("bc" "bfs" "cc" "tc" "pr")
+applications=("bc" "bfs" "cc" "pr" "sssp" "tc")
 graph_names=("as_skitter" "livejournal" "orkut" "pokec" "roadNetCA" "youtube" "web_berkstan" "web_google" "wiki_talk")
+graph_names_tc=("as_skitter" "roadNetCA" "youtube")
 OUTPUT_FOLDER="/workdir/ARTIFACTS/results/gapbs/"
 mesh=8
 
 for application in "${applications[@]}"
 do
-    for graph_name in "${graph_names[@]}"
+    # for tc, we only run a subset of the graphs since tc only works with
+    # undirected graphs
+    if [[ "$application" == "tc" ]]; then
+        actual_graph_names=("${graph_names_tc[@]}")
+    else
+        actual_graph_names=("${graph_names[@]}")
+    fi
+    for graph_name in "${actual_graph_names[@]}"
     do
         echo "Running $application-$graph_name with no prefetchers"
         HOME=/workdir /workdir/gem5/build/ARM/gem5.opt \

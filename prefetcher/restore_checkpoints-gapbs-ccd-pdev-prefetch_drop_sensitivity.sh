@@ -2,6 +2,7 @@
 
 applications=("bfs")
 graph_names=("as_skitter" "livejournal" "orkut" "pokec" "roadNetCA" "youtube" "web_berkstan" "web_google" "wiki_talk")
+graph_names_tc=("as_skitter" "roadNetCA" "youtube")
 OUTPUT_FOLDER="/workdir/ARTIFACTS/results/gapbs/"
 
 #PREFETCH_DISTANCE_DROP_DISTANCE_PAIRS=( "32:0" "32:16" "256:32" )
@@ -9,7 +10,6 @@ PREFETCH_DISTANCE_DROP_DISTANCE_PAIRS=( "32:0" )
 #PREFETCH_DISTANCE_DROP_DISTANCE_PAIRS=( "512:256" ) # for pr only
 PDEV_TBES=(1024)
 PREFETCH_AGENT=("True")
-#PICKLE_CACHE_SIZE=("4KiB" "32KiB" "256KiB")
 PICKLE_CACHE_SIZE=("256KiB")
 mesh=8
 
@@ -19,7 +19,14 @@ pf_per_hint=1
 
 for application in "${applications[@]}"
 do
-    for graph_name in "${graph_names[@]}"
+    # for tc, we only run a subset of the graphs since tc only works with
+    # undirected graphs
+    if [[ "$application" == "tc" ]]; then
+        actual_graph_names=("${graph_names_tc[@]}")
+    else
+        actual_graph_names=("${graph_names[@]}")
+    fi
+    for graph_name in "${actual_graph_names[@]}"
     do
         for pair in "${PREFETCH_DISTANCE_DROP_DISTANCE_PAIRS[@]}"
         do
