@@ -219,6 +219,9 @@ class PickleArmBoard(ArmBoard):
         self.pickle_device_mmus = [
             ArmMMU(release_se=ArmDefaultRelease()) for _ in range(num_PD_tiles)
         ]
+        self.pickle_device_functional_mmus = [
+            ArmMMU(release_se=ArmDefaultRelease()) for _ in range(num_PD_tiles)
+        ]
         self.pickle_device_isas = [ArmISA() for _ in range(num_PD_tiles)]
         self.pickle_device_decoders = [
             ArmDecoder(isa=self.pickle_device_isas[i]) for i in range(num_PD_tiles)
@@ -238,13 +241,15 @@ class PickleArmBoard(ArmBoard):
                 expected_number_of_prefetch_generators=num_generators,
                 concurrent_work_item_capacity=concurrent_work_item_capacity,
                 prefetch_dropping_distance=prefetch_drop_distance,
-                delegate_last_layer_prefetches_to_llc_agents=delegate_last_layer_prefetch
+                delegate_last_layer_prefetches_to_llc_agents=delegate_last_layer_prefetch,
+                sssp_threshold_optimization_enabled=sssp_threshold_optimization_enabled
             )
             for i in range(num_PD_tiles)
         ]
         self.pickle_devices = [
             PickleDevice(
                 mmu=self.pickle_device_mmus[i],
+                functional_mmu=self.pickle_device_functional_mmus[i],
                 isa=self.pickle_device_isas[i],
                 decoder=self.pickle_device_decoders[i],
                 device_id=i,
