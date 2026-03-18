@@ -7,6 +7,7 @@ import m5
 from gem5.utils.requires import requires
 from gem5.utils.override import overrides
 from gem5.components.boards.arm_board import ArmBoard
+from gem5.components.memory.dram_interfaces.ddr3 import DDR3_1600_8x8
 from gem5.components.memory.dram_interfaces.ddr4 import DDR4_2400_8x8
 from gem5.components.memory.dram_interfaces.ddr5 import DDR5_8400_4x8
 from gem5.components.memory.memory import ChanneledMemory
@@ -80,6 +81,8 @@ parser.add_argument(
 
 # optional
 parser.add_argument("--sssp_threshold_optimization_enabled", type=str, required=False, default="True", choices={"True", "False"})
+parser.add_argument("--llc_size", type=str, required=False, default="32MiB", choices={"16MiB", "32MiB", "64MiB"})
+parser.add_argument("--ddr_technology", type=str, required=False, default="DDR5", choices={"DDR3", "DDR4", "DDR5"})
 
 parser.add_argument("--mesh", type=int, required=True, choices={8, 10})
 args = parser.parse_args()
@@ -103,6 +106,8 @@ delegate_last_layer_prefetch = args.delegate_last_layer_prefetch
 concurrent_work_item_capacity = args.concurrent_work_item_capacity
 pdev_num_tbes = args.pdev_num_tbes
 sssp_threshold_optimization_enabled = args.sssp_threshold_optimization_enabled == "True"
+llc_size = args.llc_size
+ddr_technology = args.ddr_technology
 mesh = args.mesh
 
 print(f"Mesh: PrebuiltMesh{mesh}")
@@ -158,7 +163,7 @@ mesh_cache = MeshCacheWithPickleDevice(
     l1d_assoc=12,
     l2_size="1MiB",
     l2_assoc=16,
-    l3_size="32MiB",
+    l3_size=llc_size,
     l3_assoc=16,
     device_cache_size=pickle_cache_size,
     device_cache_assoc=16,
@@ -170,8 +175,13 @@ mesh_cache = MeshCacheWithPickleDevice(
 )
 
 # Main memory
+dram_class = {
+    "DDR3": DDR3_1600_8x8,
+    "DDR4": DDR4_2400_8x8,
+    "DDR5": DDR5_8400_4x8,
+}[ddr_technology]
 memory = ChanneledMemory(
-    dram_interface_class=DDR5_8400_4x8,
+    dram_interface_class=dram_class,
     num_channels=mesh_descriptor.get_num_mem_tiles(),
     interleaving_size=64,
     size=memory_size,
