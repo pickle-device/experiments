@@ -77,6 +77,10 @@ parser.add_argument(
     required=True,
     choices=["none", "stride", "dmp", "dmp_with_page_walk", "imp", "ampm", "sms", "bop", "multiv1"],
 )
+
+# optional
+parser.add_argument("--sssp_threshold_optimization_enabled", type=str, required=False, default="True", choices={"True", "False"})
+
 parser.add_argument("--mesh", type=int, required=True, choices={8, 10})
 args = parser.parse_args()
 
@@ -98,6 +102,7 @@ prefetch_drop_distance = args.prefetch_drop_distance
 delegate_last_layer_prefetch = args.delegate_last_layer_prefetch
 concurrent_work_item_capacity = args.concurrent_work_item_capacity
 pdev_num_tbes = args.pdev_num_tbes
+sssp_threshold_optimization_enabled = args.sssp_threshold_optimization_enabled == "True"
 mesh = args.mesh
 
 print(f"Mesh: PrebuiltMesh{mesh}")
