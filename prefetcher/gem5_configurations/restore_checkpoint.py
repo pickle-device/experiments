@@ -43,6 +43,7 @@ from m5.objects import (
     RubyDataMovementTracker,
     ProgramProgressTracker,
     ProgramProgressTrackerAgent,
+    PrefetchSchedulingPolicy,
 )
 
 from m5.objects import (
@@ -52,6 +53,7 @@ from m5.objects import (
     VExpress_GEM5_V1,
     VExpress_GEM5_Foundation,
 )
+
 
 prefetch_mode_map = {
     "single": 1,
@@ -82,7 +84,11 @@ parser.add_argument(
 # optional
 parser.add_argument("--sssp_threshold_optimization_enabled", type=str, required=False, default="True", choices={"True", "False"})
 parser.add_argument("--llc_size", type=str, required=False, default="32MiB", choices={"16MiB", "32MiB", "64MiB"})
-parser.add_argument("--ddr_technology", type=str, required=False, default="DDR5", choices={"DDR3", "DDR4", "DDR5"})
+parser.add_argument("--ddr_technology", type=str, required=False, default="DDR5@8400", choices={"DDR3@1600", "DDR4@2400", "DDR5@8400"})
+parser.add_argument(
+    "--prefetch_scheduling_policy", type=str, required=False, default="earliest_deadline_first_using_hint_arrival_time",
+    choices={"earliest_deadline_first_using_hint_arrival_time", "first_in_first_out"}
+)
 
 parser.add_argument("--mesh", type=int, required=True, choices={8, 10})
 args = parser.parse_args()
@@ -108,6 +114,10 @@ pdev_num_tbes = args.pdev_num_tbes
 sssp_threshold_optimization_enabled = args.sssp_threshold_optimization_enabled == "True"
 llc_size = args.llc_size
 ddr_technology = args.ddr_technology
+prefetch_scheduling_policy = {
+    "earliest_deadline_first_using_hint_arrival_time": PrefetchSchedulingPolicy("EARLIEST_DEADLINE_FIRST_BASED_ON_HINT_ARRIVAL_TIME"),
+    "first_in_first_out": PrefetchSchedulingPolicy("FIRST_IN_FIRST_OUT"),
+}[args.prefetch_scheduling_policy]
 mesh = args.mesh
 
 print(f"Mesh: PrebuiltMesh{mesh}")
@@ -176,9 +186,9 @@ mesh_cache = MeshCacheWithPickleDevice(
 
 # Main memory
 dram_class = {
-    "DDR3": DDR3_1600_8x8,
-    "DDR4": DDR4_2400_8x8,
-    "DDR5": DDR5_8400_4x8,
+    "DDR3@1600": DDR3_1600_8x8,
+    "DDR4@2400": DDR4_2400_8x8,
+    "DDR5@8400": DDR5_8400_4x8,
 }[ddr_technology]
 memory = ChanneledMemory(
     dram_interface_class=dram_class,
@@ -257,6 +267,7 @@ class PickleArmBoard(ArmBoard):
                 concurrent_work_item_capacity=concurrent_work_item_capacity,
                 prefetch_dropping_distance=prefetch_drop_distance,
                 delegate_last_layer_prefetches_to_llc_agents=delegate_last_layer_prefetch,
+                prefetch_scheduling_policy=prefetch_scheduling_policy,
                 sssp_threshold_optimization_enabled=sssp_threshold_optimization_enabled
             )
             for i in range(num_PD_tiles)
