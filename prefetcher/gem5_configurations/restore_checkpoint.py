@@ -74,6 +74,7 @@ parser.add_argument("--prefetch_drop_distance", type=int, required=True)
 parser.add_argument("--delegate_last_layer_prefetch", type=str, required=True, choices={"True", "False"})
 parser.add_argument("--concurrent_work_item_capacity", type=int, required=True)
 parser.add_argument("--pdev_num_tbes", type=int, required=True)
+parser.add_argument("--llc_delegation_timeout", type=int, required=True, help="Number of cycles after which the prefetcher should stop waiting for a prefetch request to be picked up by an LLC agent before it tries to send the prefetch itself")
 parser.add_argument(
     "--private_cache_prefetcher",
     type=str,
@@ -83,6 +84,9 @@ parser.add_argument(
 
 # optional
 parser.add_argument("--sssp_threshold_optimization_enabled", type=str, required=False, default="True", choices={"True", "False"})
+parser.add_argument("--bc_depth_optimization_enabled", type=str, required=False, default="False", choices={"True", "False"})
+parser.add_argument("--bc_depth_prefetch_to_both_llc_and_pickle_enabled", type=str, required=False, default="False", choices={"True", "False"})
+parser.add_argument("--functional_pickle_mmu", type=str, required=False, default="False", choices={"True", "False"})
 parser.add_argument("--llc_size", type=str, required=False, default="32MiB", choices={"16MiB", "32MiB", "64MiB"})
 parser.add_argument("--ddr_technology", type=str, required=False, default="DDR5@8400", choices={"DDR3@1600", "DDR4@2400", "DDR5@8400"})
 parser.add_argument(
@@ -111,7 +115,11 @@ prefetch_drop_distance = args.prefetch_drop_distance
 delegate_last_layer_prefetch = args.delegate_last_layer_prefetch
 concurrent_work_item_capacity = args.concurrent_work_item_capacity
 pdev_num_tbes = args.pdev_num_tbes
+llc_delegation_timeout = args.llc_delegation_timeout
 sssp_threshold_optimization_enabled = args.sssp_threshold_optimization_enabled == "True"
+bc_depth_optimization_enabled = args.bc_depth_optimization_enabled == "True"
+bc_depth_prefetch_to_both_llc_and_pickle_enabled = args.bc_depth_prefetch_to_both_llc_and_pickle_enabled == "True"
+functional_pickle_mmu = args.functional_pickle_mmu == "True"
 llc_size = args.llc_size
 ddr_technology = args.ddr_technology
 prefetch_scheduling_policy = {
@@ -157,7 +165,7 @@ memory_size = choose_memory_size(application, graph_name)
 
 def getNumPrefetchGeneratorsForApplication(application):
     return {
-        "bc": 2,
+        "bc": 3,
         "bfs": 1,
         "cc": 1,
         "pr": 1,
@@ -252,7 +260,9 @@ class PickleArmBoard(ArmBoard):
             ArmDecoder(isa=self.pickle_device_isas[i]) for i in range(num_PD_tiles)
         ]
         self.pickle_device_request_manager = [
-            PickleDeviceRequestManager() for i in range(num_PD_tiles)
+            PickleDeviceRequestManager(
+                use_functional_mmu=functional_pickle_mmu,
+            ) for i in range(num_PD_tiles)
         ]
         num_generators = getNumPrefetchGeneratorsForApplication(application)
         self.pickle_device_prefetchers = [
@@ -268,7 +278,9 @@ class PickleArmBoard(ArmBoard):
                 prefetch_dropping_distance=prefetch_drop_distance,
                 delegate_last_layer_prefetches_to_llc_agents=delegate_last_layer_prefetch,
                 prefetch_scheduling_policy=prefetch_scheduling_policy,
-                sssp_threshold_optimization_enabled=sssp_threshold_optimization_enabled
+                sssp_threshold_optimization_enabled=sssp_threshold_optimization_enabled,
+                bc_depth_optimization_enabled=bc_depth_optimization_enabled,
+                #bc_depth_prefetch_to_both_llc_and_pickle_enabled=bc_depth_prefetch_to_both_llc_and_pickle_enabled,
             )
             for i in range(num_PD_tiles)
         ]
@@ -310,6 +322,8 @@ class PickleArmBoard(ArmBoard):
             for core in all_cores:
                 core.mmu.enable_page_walk_on_prefetch_request_tlb_miss = True
         super()._pre_instantiate()
+        for agent in self.cache_hierarchy.llc_prefetch_agents:
+            agent.timeout_cycles = llc_delegation_timeout
         if application in tracking_pc:
             self.pc_tracker_agents = [
                 ProgramProgressTrackerAgent(
@@ -500,7 +514,7 @@ checkpoint_name = f"{application}-{graph_name}-mesh_{mesh}"
 checkpoint_path = Path(f"/workdir/ARTIFACTS/checkpoints/{checkpoint_name}")
 board.set_kernel_disk_workload(
     kernel=CustomResource("/workdir/ARTIFACTS/vmlinux-6.6.71"),
-    disk_image=CustomDiskImageResource("/workdir/ARTIFACTS/arm64.img.v7"),
+    disk_image=CustomDiskImageResource("/workdir/ARTIFACTS/arm64.img.v8"),
     #bootloader=obtain_resource("arm64-bootloader", resource_version="1.0.0"),
     bootloader=CustomResource("/workdir/.cache/gem5/arm64-bootloader"),
     checkpoint=checkpoint_path,
