@@ -50,7 +50,7 @@ from m5.objects import (
 )
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--application", type=str, required=True, choices={"bc", "bfs", "cc", "pr", "tc", "sssp", "spmv", "is"})
+parser.add_argument("--application", type=str, required=True, choices={"bc", "bfs", "cc", "pr", "tc", "sssp", "spmv", "is", "cg"})
 parser.add_argument("--graph_name", type=str, required=True)
 parser.add_argument("--mesh", type=int, required=True, choices={8, 10})
 args = parser.parse_args()
@@ -152,6 +152,9 @@ class PickleArmBoard(ArmBoard):
         self.pickle_device_mmus = [
             ArmMMU(release_se=ArmDefaultRelease()) for _ in range(num_PD_tiles)
         ]
+        self.pickle_device_functional_mmus = [
+            ArmMMU(release_se=ArmDefaultRelease()) for _ in range(num_PD_tiles)
+        ]
         self.pickle_device_isas = [ArmISA() for _ in range(num_PD_tiles)]
         self.pickle_device_decoders = [
             ArmDecoder(isa=self.pickle_device_isas[i]) for i in range(num_PD_tiles)
@@ -173,6 +176,7 @@ class PickleArmBoard(ArmBoard):
         self.pickle_devices = [
             PickleDevice(
                 mmu=self.pickle_device_mmus[i],
+                functional_mmu=self.pickle_device_functional_mmus[i],
                 isa=self.pickle_device_isas[i],
                 decoder=self.pickle_device_decoders[i],
                 device_id=i,
@@ -312,7 +316,7 @@ if application in {"bc", "bfs", "cc", "pr", "sssp", "tc"}:
 elif application in {"spmv"}:
     graph_path = matrix_path_map[graph_name]
     command = f"{command_prefix} /home/ubuntu/benchmarks/spmv/spmv.hw.pdev.m5 {graph_path}"
-elif application in {"is", "cg" "ua"}:
+elif application in {"is", "cg", "ua"}:
     workload_class = graph_name
     command = f"{command_prefix} /home/ubuntu/NPB/NPB3.4-OMP/bin/{application}.{workload_class}.x.m5.pdev"
 else:
