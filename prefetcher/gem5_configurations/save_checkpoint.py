@@ -50,7 +50,7 @@ from m5.objects import (
 )
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--application", type=str, required=True, choices={"bc", "bfs", "cc", "pr", "tc", "sssp", "spmv"})
+parser.add_argument("--application", type=str, required=True, choices={"bc", "bfs", "cc", "pr", "tc", "sssp", "spmv", "is"})
 parser.add_argument("--graph_name", type=str, required=True)
 parser.add_argument("--mesh", type=int, required=True, choices={8, 10})
 args = parser.parse_args()
@@ -312,12 +312,15 @@ if application in {"bc", "bfs", "cc", "pr", "sssp", "tc"}:
 elif application in {"spmv"}:
     graph_path = matrix_path_map[graph_name]
     command = f"{command_prefix} /home/ubuntu/benchmarks/spmv/spmv.hw.pdev.m5 {graph_path}"
+elif application in {"is", "cg" "ua"}:
+    workload_class = graph_name
+    command = f"{command_prefix} /home/ubuntu/NPB/NPB3.4-OMP/bin/{application}.{workload_class}.x.m5.pdev"
 else:
     assert False, f"Unknown application: {application}"
 
 board.set_kernel_disk_workload(
     kernel=CustomResource("/workdir/ARTIFACTS/linux-6.6.71/vmlinux"),
-    disk_image=CustomDiskImageResource("/workdir/ARTIFACTS/arm64.img.v8"),
+    disk_image=CustomDiskImageResource("/workdir/ARTIFACTS/arm64.img.v9"),
     #bootloader=obtain_resource("arm64-bootloader", resource_version="1.0.0"),
     bootloader=CustomResource("/workdir/.cache/gem5/arm64-bootloader"),
     readfile_contents=command,
