@@ -1,17 +1,18 @@
 #!/bin/bash
 
-applications=("bc" "bfs" "cc" "pr" "sssp" "tc")
+#applications=("bc" "bfs" "cc" "pr" "sssp" "tc")
+applications=("bfs")
 graph_names=("as_skitter" "livejournal" "orkut" "pokec" "roadNetCA" "youtube" "web_berkstan" "web_google" "wiki_talk")
 graph_names_tc=("as_skitter" "roadNetCA" "youtube")
-OUTPUT_FOLDER="/workdir/ARTIFACTS/results/gapbs/"
+OUTPUT_FOLDER="/workdir/ARTIFACTS/results_tbe_64/gapbs/"
 
-#PREFETCH_DISTANCE_DROP_DISTANCE_PAIRS=( "32:0" "32:16" "256:32" )
 PREFETCH_DISTANCE_DROP_DISTANCE_PAIRS=( "32:16" )
-#PREFETCH_DISTANCE_DROP_DISTANCE_PAIRS=( "512:256" ) # for pr only
-PDEV_TBES=(1024)
+PDEV_TBES=(64)
 PREFETCH_AGENT=("True")
 PICKLE_CACHE_SIZE=("256KiB")
+LLC_AGENT_TIMEOUT=0 # in cycles
 mesh=8
+functional_pickle_mmu="True"
 
 prefetch_mode="single"
 chunk_size=1
@@ -47,7 +48,7 @@ do
                         echo "Running $application-$graph_name with Pickle Prefetcher: distance $prefetch_distance, offset $OFFSET, drop $prefetch_drop_distance, tbe $pdev_tbes, llc_agent $delegate_last_layer_prefetch, cache_size $pickle_cache_size, mode $prefetch_mode, chunk_size $chunk_size, pf_per_hint $pf_per_hint"
                         HOME=/workdir /workdir/gem5/build/ARM/gem5.opt \
                             -re \
-                            --outdir=$OUTPUT_FOLDER/$application-$graph_name-mesh_$mesh-pdev_distance_${prefetch_distance}_offset_${OFFSET}_drop_${prefetch_drop_distance}_tbe_${pdev_tbes}_delegate_${delegate_last_layer_prefetch}_cache_${pickle_cache_size}_mode_${prefetch_mode}_chunksize_${chunk_size}_bulksize_${pf_per_hint} \
+                            --outdir=$OUTPUT_FOLDER/$application-$graph_name-mesh_$mesh-pdev_distance_${prefetch_distance}_offset_${OFFSET}_drop_${prefetch_drop_distance}_tbe_${pdev_tbes}_delegate_${delegate_last_layer_prefetch}_cache_${pickle_cache_size}_mode_${prefetch_mode}_chunksize_${chunk_size}_bulksize_${pf_per_hint}_llctimeout_${LLC_AGENT_TIMEOUT}_picklefunctionalmmu_${functional_pickle_mmu} \
                             --debug-flags=PickleDevicePrefetcherProgressTracker \
                                 experiments/prefetcher/gem5_configurations/restore_checkpoint.py \
                             --application $application \
@@ -61,7 +62,9 @@ do
                             --offset_from_pf_hint=$OFFSET \
                             --prefetch_drop_distance=$prefetch_drop_distance\
                             --delegate_last_layer_prefetch=$delegate_last_layer_prefetch\
+                            --functional_pickle_mmu=$functional_pickle_mmu\
                             --pdev_num_tbes=$pdev_tbes \
+                            --llc_delegation_timeout=$LLC_AGENT_TIMEOUT \
                             --concurrent_work_item_capacity=64 \
                             --private_cache_prefetcher=none \
                             --mesh $mesh &

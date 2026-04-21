@@ -1,11 +1,13 @@
 #!/bin/bash
 
+#private_cache_prefetchers=("stride" "dmp_with_page_walk")
 private_cache_prefetchers=("stride" "dmp_with_page_walk")
 
-applications=("bc" "bfs" "cc" "pr" "sssp" "tc")
+#applications=("bc" "bfs" "cc" "pr" "sssp" "tc")
+applications=("cc" "pr" "tc")
 graph_names=("as_skitter" "livejournal" "orkut" "pokec" "roadNetCA" "youtube" "web_berkstan" "web_google" "wiki_talk")
 graph_names_tc=("as_skitter" "roadNetCA" "youtube")
-OUTPUT_FOLDER="/workdir/ARTIFACTS/results/gapbs/"
+OUTPUT_FOLDER="/workdir/ARTIFACTS/results_tbe_64/gapbs/"
 mesh=8
 
 for application in "${applications[@]}"
@@ -37,6 +39,7 @@ do
                 --delegate_last_layer_prefetch False \
                 --concurrent_work_item_capacity 64 \
                 --pdev_num_tbes 1024 \
+                --llc_delegation_timeout 0 \
                 --private_cache_prefetcher=$private_cache_prefetcher \
                 --prefetch_mode single \
                 --bulk_prefetch_chunk_size 1 \
