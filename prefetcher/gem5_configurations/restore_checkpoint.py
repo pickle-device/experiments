@@ -61,7 +61,7 @@ prefetch_mode_map = {
 }
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--application", type=str, required=True, choices={"bc", "bfs", "cc", "pr", "sssp", "tc", "spmv"})
+parser.add_argument("--application", type=str, required=True, choices={"bc", "bfs", "cc", "pr", "sssp", "tc", "spmv", "is", "cg"})
 parser.add_argument("--graph_name", type=str, required=True)
 parser.add_argument("--enable_pdev", type=str, required=True, choices={"True", "False"})
 parser.add_argument("--pickle_cache_size", type=str, required=True, help="Prefetcher cache size, e.g., 4KiB")
@@ -171,7 +171,9 @@ def getNumPrefetchGeneratorsForApplication(application):
         "pr": 1,
         "sssp": 3,
         "tc": 1,
-        "spmv": 1
+        "spmv": 1,
+        "is": 1,
+        "cg": 2,
     }[application]
 
 mesh_cache = MeshCacheWithPickleDevice(
@@ -507,6 +509,9 @@ if application in {"bc", "bfs", "cc", "pr", "sssp", "tc"}:
 elif application in {"spmv"}:
     graph_path = matrix_path_map[graph_name]
     command = f"{command_prefix} /home/ubuntu/benchmarks/spmv/spmv.hw.pdev.m5 {graph_path}"
+elif application in {"is", "cg", "ua"}:
+    workload_class = graph_name
+    command = f"{command_prefix} /home/ubuntu/NPB/NPB3.4-OMP/bin/{application}.{workload_class}.x.m5.pdev"
 else:
     assert False, f"Unknown application: {application}"
 
@@ -514,7 +519,7 @@ checkpoint_name = f"{application}-{graph_name}-mesh_{mesh}"
 checkpoint_path = Path(f"/workdir/ARTIFACTS/checkpoints/{checkpoint_name}")
 board.set_kernel_disk_workload(
     kernel=CustomResource("/workdir/ARTIFACTS/vmlinux-6.6.71"),
-    disk_image=CustomDiskImageResource("/workdir/ARTIFACTS/arm64.img.v8"),
+    disk_image=CustomDiskImageResource("/workdir/ARTIFACTS/arm64.img.v9"),
     #bootloader=obtain_resource("arm64-bootloader", resource_version="1.0.0"),
     bootloader=CustomResource("/workdir/.cache/gem5/arm64-bootloader"),
     checkpoint=checkpoint_path,
