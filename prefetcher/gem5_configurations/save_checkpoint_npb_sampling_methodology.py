@@ -260,7 +260,12 @@ board = PickleArmBoard(
 )
 
 command_prefix = ""
-command = f"{command_prefix} /home/ubuntu/NPB/NPB3.4-OMP/bin/{application}.{workload_class}.x.sampling.m5.pdev"
+if application == "is":
+    command = f"{command_prefix} /home/ubuntu/NPB/NPB3.4-OMP/bin/{application}.{workload_class}.x.sampling.m5.pdev {starting_iter} {num_warmup_iters}"
+elif application == "cg":
+    command = f"{command_prefix} /home/ubuntu/NPB/NPB3.4-OMP/bin/{application}.{workload_class}.x.sampling.m5.pdev {sampling_site} {starting_iter} {num_warmup_iters}"
+else:
+    raise UnimplementedError(f"Application {application} is not implemented")
 
 board.set_kernel_disk_workload(
     kernel=CustomResource("/workdir/ARTIFACTS/linux-6.6.71/vmlinux"),
