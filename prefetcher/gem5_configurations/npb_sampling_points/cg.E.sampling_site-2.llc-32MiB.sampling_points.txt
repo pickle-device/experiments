@@ -1,0 +1,36 @@
+Input:  Workload: cg
+  Class: E
+  Sampling Site: 2
+  LLC Size: 32 MiB
+  Number of Sampling Points: 30
+  Sampling Points:
+    Sampling Point 1: Starting Iter = 6854095, Num Warmup Iters = 3983
+    Sampling Point 2: Starting Iter = 8724497, Num Warmup Iters = 3988
+    Sampling Point 3: Starting Iter = 1957154, Num Warmup Iters = 3988
+    Sampling Point 4: Starting Iter = 2963958, Num Warmup Iters = 3971
+    Sampling Point 5: Starting Iter = 6368109, Num Warmup Iters = 3981
+    Sampling Point 6: Starting Iter = 3777550, Num Warmup Iters = 3953
+    Sampling Point 7: Starting Iter = 4858147, Num Warmup Iters = 3959
+    Sampling Point 8: Starting Iter = 488171, Num Warmup Iters = 3979
+    Sampling Point 9: Starting Iter = 3769614, Num Warmup Iters = 3972
+    Sampling Point 10: Starting Iter = 1957072, Num Warmup Iters = 3986
+    Sampling Point 11: Starting Iter = 147734, Num Warmup Iters = 3984
+    Sampling Point 12: Starting Iter = 1680744, Num Warmup Iters = 3973
+    Sampling Point 13: Starting Iter = 2628828, Num Warmup Iters = 3982
+    Sampling Point 14: Starting Iter = 8618678, Num Warmup Iters = 3991
+    Sampling Point 15: Starting Iter = 5083204, Num Warmup Iters = 3961
+    Sampling Point 16: Starting Iter = 6348945, Num Warmup Iters = 3958
+    Sampling Point 17: Starting Iter = 6795574, Num Warmup Iters = 3980
+    Sampling Point 18: Starting Iter = 5471384, Num Warmup Iters = 3995
+    Sampling Point 19: Starting Iter = 6011015, Num Warmup Iters = 3972
+    Sampling Point 20: Starting Iter = 1234022, Num Warmup Iters = 3976
+    Sampling Point 21: Starting Iter = 5684472, Num Warmup Iters = 3993
+    Sampling Point 22: Starting Iter = 4743416, Num Warmup Iters = 3964
+    Sampling Point 23: Starting Iter = 2668390, Num Warmup Iters = 3988
+    Sampling Point 24: Starting Iter = 1879214, Num Warmup Iters = 3980
+    Sampling Point 25: Starting Iter = 8573394, Num Warmup Iters = 4004
+    Sampling Point 26: Starting Iter = 1175524, Num Warmup Iters = 3998
+    Sampling Point 27: Starting Iter = 1587587, Num Warmup Iters = 3990
+    Sampling Point 28: Starting Iter = 4529875, Num Warmup Iters = 3980
+    Sampling Point 29: Starting Iter = 5292012, Num Warmup Iters = 3970
+    Sampling Point 30: Starting Iter = 1807190, Num Warmup Iters = 3977

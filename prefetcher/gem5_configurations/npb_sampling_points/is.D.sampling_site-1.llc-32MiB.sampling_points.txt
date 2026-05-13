@@ -1,0 +1,36 @@
+Input:  Workload: is
+  Class: D
+  Sampling Site: 1
+  LLC Size: 32 MiB
+  Number of Sampling Points: 30
+  Sampling Points:
+    Sampling Point 1: Starting Iter = 40, Num Warmup Iters = 62
+    Sampling Point 2: Starting Iter = 293, Num Warmup Iters = 2
+    Sampling Point 3: Starting Iter = 713, Num Warmup Iters = 1
+    Sampling Point 4: Starting Iter = 781, Num Warmup Iters = 2
+    Sampling Point 5: Starting Iter = 148, Num Warmup Iters = 8
+    Sampling Point 6: Starting Iter = 474, Num Warmup Iters = 1
+    Sampling Point 7: Starting Iter = 379, Num Warmup Iters = 1
+    Sampling Point 8: Starting Iter = 688, Num Warmup Iters = 1
+    Sampling Point 9: Starting Iter = 716, Num Warmup Iters = 1
+    Sampling Point 10: Starting Iter = 812, Num Warmup Iters = 3
+    Sampling Point 11: Starting Iter = 99, Num Warmup Iters = 20
+    Sampling Point 12: Starting Iter = 465, Num Warmup Iters = 1
+    Sampling Point 13: Starting Iter = 614, Num Warmup Iters = 1
+    Sampling Point 14: Starting Iter = 511, Num Warmup Iters = 1
+    Sampling Point 15: Starting Iter = 624, Num Warmup Iters = 1
+    Sampling Point 16: Starting Iter = 20, Num Warmup Iters = 82
+    Sampling Point 17: Starting Iter = 527, Num Warmup Iters = 1
+    Sampling Point 18: Starting Iter = 443, Num Warmup Iters = 1
+    Sampling Point 19: Starting Iter = 591, Num Warmup Iters = 1
+    Sampling Point 20: Starting Iter = 382, Num Warmup Iters = 1
+    Sampling Point 21: Starting Iter = 640, Num Warmup Iters = 1
+    Sampling Point 22: Starting Iter = 873, Num Warmup Iters = 8
+    Sampling Point 23: Starting Iter = 561, Num Warmup Iters = 1
+    Sampling Point 24: Starting Iter = 908, Num Warmup Iters = 21
+    Sampling Point 25: Starting Iter = 774, Num Warmup Iters = 2
+    Sampling Point 26: Starting Iter = 445, Num Warmup Iters = 1
+    Sampling Point 27: Starting Iter = 404, Num Warmup Iters = 1
+    Sampling Point 28: Starting Iter = 181, Num Warmup Iters = 5
+    Sampling Point 29: Starting Iter = 60, Num Warmup Iters = 45
+    Sampling Point 30: Starting Iter = 872, Num Warmup Iters = 8

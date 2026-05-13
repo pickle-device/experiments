@@ -1,0 +1,9 @@
+Input:  Workload: cg
+  Class: S
+  Sampling Site: 2
+  LLC Size: 32 MiB
+  Number of Sampling Points: 3
+  Sampling Points:
+    Sampling Point 1: Starting Iter = 300, Num Warmup Iters = 10
+    Sampling Point 2: Starting Iter = 600, Num Warmup Iters = 20
+    Sampling Point 3: Starting Iter = 900, Num Warmup Iters = 30
