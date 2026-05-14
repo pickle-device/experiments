@@ -40,6 +40,7 @@ from m5.objects import (
     PickleDeviceRequestManager,
     PicklePrefetcher,
     TAGE_SC_L_64KB,
+    CompressionType,
 )
 
 from m5.objects import (
@@ -258,6 +259,8 @@ board = PickleArmBoard(
     release=ArmDefaultRelease.for_kvm(),
     platform=VExpress_GEM5_V1(),
 )
+board.compression_type = CompressionType("RAW")
+board.checkpoint_mem_checksum = True
 
 command_prefix = ""
 if application == "is":
