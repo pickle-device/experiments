@@ -259,7 +259,7 @@ board = PickleArmBoard(
     release=ArmDefaultRelease.for_kvm(),
     platform=VExpress_GEM5_V1(),
 )
-board.compression_type = CompressionType("RAW")
+board.compression_type = CompressionType("ZSTD")
 board.checkpoint_mem_checksum = True
 
 command_prefix = ""
