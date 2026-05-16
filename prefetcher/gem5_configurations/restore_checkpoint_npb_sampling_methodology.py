@@ -188,7 +188,7 @@ num_cores = mesh_descriptor.get_num_core_tiles()
 fast_forward_cpu_type = CPUTypes.KVM
 
 special_memory_requirement = {
-    ("cg", "E"): "128GiB",
+    ("cg", "E"): "192GiB",
     ("is", "D"): "48GiB",
     ("ua", "D"): "16GiB",
 }
