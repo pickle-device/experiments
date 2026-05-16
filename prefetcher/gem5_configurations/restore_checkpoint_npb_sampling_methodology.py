@@ -239,12 +239,12 @@ processor = SimpleProcessor(cpu_type=CPUTypes.O3, isa=ISA.ARM, num_cores=num_cor
 
 # (application, workload_class, sampling_site) -> tracked PC
 tracking_pc = {
-    ("is", "S", 1): 0x5284,
-    ("is", "D", 1): 0x50c8,
-    ("cg", "S", 1): 0x37b4,
-    ("cg", "S", 2): 0x4014,
-    ("cg", "E", 1): 0x37c4,
-    ("cg", "E", 2): 0x4024,
+    ("is", "S", 1): [0x5278, 0x5220],
+    ("is", "D", 1): [0x50c8],
+    ("cg", "S", 1): [0x37b4],
+    ("cg", "S", 2): [0x4014],
+    ("cg", "E", 1): [0x37c4],
+    ("cg", "E", 2): [0x4024],
 }
 
 class PickleArmBoard(ArmBoard):
@@ -359,19 +359,23 @@ class PickleArmBoard(ArmBoard):
         super()._pre_instantiate()
         for agent in self.cache_hierarchy.llc_prefetch_agents:
             agent.timeout_cycles = llc_delegation_timeout
-        if application in tracking_pc:
+        if (application, workload_class, sampling_site) in tracking_pc:
+            tracking_pcs = tracking_pc[(application, workload_class, sampling_site)]
             self.pc_tracker_agents = [
                 ProgramProgressTrackerAgent(
                     associated_core=core,
                     manager=core
                 )
+                for pc in tracking_pcs
                 for core in all_cores
             ]
-            self.pc_tracker = ProgramProgressTracker(
-                tracker_agents=self.pc_tracker_agents,
-                tracking_pc=0 if (application, workload_class, sampling_site) not in tracking_pc else tracking_pc[(application, workload_class, sampling_site)],
-                tracking_interval=100_000 if workload_class != "S" else 1
-            )
+            self.pc_trackers = [ProgramProgressTracker(
+                tracker_agents=self.pc_tracker_agents[i * len(all_cores) : (i + 1) * len(all_cores)],
+                tracking_pc=pc,
+                tracking_interval=10_000 if workload_class != "S" else 2
+            ) for i, pc in enumerate(tracking_pcs)]
+        else:
+            assert False, f"No tracking PC found for application {application}, workload class {workload_class}, sampling site {sampling_site}"
         for core_tile in self.cache_hierarchy.core_tiles:
             if private_cache_prefetcher == "dmp":
                 core_tile.l1d_cache.dmp_prefetcher.tracked_items_per_target_table_entry = 16
@@ -468,28 +472,36 @@ board.set_kernel_disk_workload(
 
 
 def handle_exit_with_pdev():
-    print("[exit 2] done with warmup, starting sampling")
+    print("[exit 2] done with warmup, turning on pdev")
     m5.stats.dump()
-    print("   -> turning on devices")
     for dev in board.pickle_devices:
         dev.switchOn()
     for snooper in board.traffic_snoopers:
         snooper.switchOn()
     yield False
 
-    print("[exit 3] done with sampling, stopping sim")
+    print("[exit 3] starting sampling")
+    m5.stats.dump()
+    m5.debug.flags["ExecAll"].enable()
+    yield False
+
+    print("[exit 4] done with sampling, stopping sim")
     m5.stats.dump()
     yield True
 
 
 def handle_exit_without_pdev():
-    print("[exit 2] done with warmup, starting sampling")
+    print("[exit 2] done with warmup, turning on snooper/not turning on pdev")
     m5.stats.dump()
     for snooper in board.traffic_snoopers:
         snooper.switchOn()
     yield False
 
-    print("[exit 3] done with sampling, stopping sim")
+    print("[exit 3] starting sampling")
+    m5.stats.dump()
+    yield False
+
+    print("[exit 4] done with sampling, stopping sim")
     m5.stats.dump()
     yield True
 
@@ -497,12 +509,6 @@ def handle_exit_without_pdev():
 def handle_max_tick():
     print("[exit 1] starting warmup")
     m5.stats.dump()
-    # trigger the test, the prefetch agent 0 should send out requests to LLC
-    #for agent in board.cache_hierarchy.llc_prefetch_agents:
-    #    agent.triggerTests()
-    #m5.debug.flags["ProtocolTrace"].enable()
-    #m5.debug.flags["RubyProtocol"].enable()
-    #m5.debug.flags["PickleRubyDebug"].enable()
     yield False
 
 
