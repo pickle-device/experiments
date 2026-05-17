@@ -66,6 +66,7 @@ parser.add_argument("--application", type=str, required=True, choices={"is", "cg
 parser.add_argument("--workload_class", type=str, required=True)
 parser.add_argument("--sampling_site", type=int, required=True)
 parser.add_argument("--sampling_point", type=int, required=True)
+parser.add_argument("--sampling_duration_milliseconds", type=int, required=True)
 parser.add_argument("--enable_pdev", type=str, required=True, choices={"True", "False"})
 parser.add_argument("--pickle_cache_size", type=str, required=True, help="Prefetcher cache size, e.g., 4KiB")
 parser.add_argument("--prefetch_distance", type=int, required=True)
@@ -104,6 +105,7 @@ application = args.application
 workload_class = args.workload_class
 sampling_site = args.sampling_site
 sampling_point = args.sampling_point
+sampling_duration_milliseconds = args.sampling_duration_milliseconds
 enable_pdev = args.enable_pdev == "True"
 pickle_cache_size = args.pickle_cache_size
 prefetch_distance = args.prefetch_distance
@@ -167,6 +169,7 @@ num_warmup_iters = sampling_points[sampling_point].num_warmup_iters
 print(f"Mesh: PrebuiltMesh{mesh}")
 print(f"Application: {application}")
 print(f"Workload class: {workload_class}")
+print(f"Sampling Duration (ms): {sampling_duration_milliseconds}")
 print(f"Private Cache Prefetcher: {private_cache_prefetcher}, Enable core MMU page walk for prefetches: {enable_core_mmu_ptw_for_prefetches}")
 print(f"Enable Pickle Device: {enable_pdev}")
 print(f"Prefetch Distance: {prefetch_distance}, Offset: {offset_from_pf_hint}, Drop Distance: {prefetch_drop_distance}")
@@ -463,7 +466,7 @@ checkpoint_name += f"-num_warmup_iters_{num_warmup_iters}"
 checkpoint_path = Path(f"/workdir/ARTIFACTS/checkpoints/{checkpoint_name}")
 board.set_kernel_disk_workload(
     kernel=CustomResource("/workdir/ARTIFACTS/vmlinux-6.6.71"),
-    disk_image=CustomDiskImageResource("/workdir/ARTIFACTS/arm64.img.v10"),
+    disk_image=CustomDiskImageResource("/workdir/ARTIFACTS/arm64.img.v11"),
     #bootloader=obtain_resource("arm64-bootloader", resource_version="1.0.0"),
     bootloader=CustomResource("/workdir/.cache/gem5/arm64-bootloader"),
     checkpoint=checkpoint_path,
@@ -481,8 +484,8 @@ def handle_exit_with_pdev():
     yield False
 
     print("[exit 3] starting sampling")
+    m5.scheduleTickExitFromCurrent(sampling_duration_milliseconds * 10**9)
     m5.stats.dump()
-    m5.debug.flags["ExecAll"].enable()
     yield False
 
     print("[exit 4] done with sampling, stopping sim")
@@ -498,6 +501,7 @@ def handle_exit_without_pdev():
     yield False
 
     print("[exit 3] starting sampling")
+    m5.scheduleTickExitFromCurrent(sampling_duration_milliseconds * 10**9)
     m5.stats.dump()
     yield False
 
@@ -526,6 +530,12 @@ def handle_work_end():
     yield True
 
 
+def handle_scheduled_tick():
+    print(f"[scheduled tick] {sampling_duration_milliseconds}ms elapsed since exit 3, stopping sim")
+    m5.stats.dump()
+    yield True
+
+
 handle_exit = handle_exit_with_pdev if enable_pdev else handle_exit_without_pdev
 
 simulator = Simulator(
@@ -535,6 +545,7 @@ simulator = Simulator(
         ExitEvent.MAX_TICK: handle_max_tick(),
         ExitEvent.WORKBEGIN: handle_work_begin(),
         ExitEvent.WORKEND: handle_work_end(),
+        ExitEvent.SCHEDULED_TICK: handle_scheduled_tick(),
     },
 )
 
@@ -544,7 +555,7 @@ print("Running the simulation")
 
 # We start the simulation.
 simulator.run(1)
-simulator.run(10 ** 18)
+simulator.run(10**18)
 
 print(f"Ran a total of {simulator.get_current_tick() / 1e12} simulated seconds")
 
