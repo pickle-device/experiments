@@ -244,10 +244,10 @@ processor = SimpleProcessor(cpu_type=CPUTypes.O3, isa=ISA.ARM, num_cores=num_cor
 tracking_pc = {
     ("is", "S", 1): [0x404ff0, 0x405048],
     ("is", "D", 1): [0x404fb8, 0x405000],
-    ("cg", "S", 1): [0x403218],
-    ("cg", "S", 2): [0x403bac],
-    ("cg", "E", 1): [0x403218],
-    ("cg", "E", 2): [0x403bb4],
+    ("cg", "S", 1): [0x4031e0],
+    ("cg", "S", 2): [0x403c14],
+    ("cg", "E", 1): [0x4031e0],
+    ("cg", "E", 2): [0x403c1c],
 }
 
 class PickleArmBoard(ArmBoard):
