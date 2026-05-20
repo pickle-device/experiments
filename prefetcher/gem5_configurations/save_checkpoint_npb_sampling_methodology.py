@@ -260,7 +260,7 @@ board = PickleArmBoard(
     platform=VExpress_GEM5_V1(),
 )
 board.compression_type = CompressionType("ZSTD")
-board.checkpoint_mem_checksum = True
+board.checkpoint_mem_checksum = False
 
 command_prefix = ""
 if application == "is":

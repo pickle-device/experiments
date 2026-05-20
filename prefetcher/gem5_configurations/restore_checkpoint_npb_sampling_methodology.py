@@ -448,7 +448,7 @@ board = PickleArmBoard(
     release=ArmDefaultRelease.for_kvm(),
     platform=VExpress_GEM5_V1(),
 )
-board.checkpoint_mem_checksum = True
+board.checkpoint_mem_checksum = False
 
 command_prefix = ""
 if application == "is":
