@@ -242,12 +242,30 @@ processor = SimpleProcessor(cpu_type=CPUTypes.O3, isa=ISA.ARM, num_cores=num_cor
 
 # (application, workload_class, sampling_site) -> tracked PC
 tracking_pc = {
-    ("is", "S", 1): [0x404ff0, 0x405048],
-    ("is", "D", 1): [0x404fb8, 0x405000],
-    ("cg", "S", 1): [0x40323c],
-    ("cg", "S", 2): [0x403c74],
-    ("cg", "E", 1): [0x40323c],
-    ("cg", "E", 2): [0x403c74],
+    ("is", "S", 1): [
+        0x404ff0, 0x405048, # with pdev
+        0x404e3c. 0x404f14, # without pdev
+    ],
+    ("is", "D", 1): [
+        0x404fb8, 0x405000, # with pdev
+        0x404e7c, 0x404f3c, # without pdev
+    ],
+    ("cg", "S", 1): [
+        0x40323c, # with pdev
+        0x40370c, # without pdev
+    ],
+    ("cg", "S", 2): [
+        0x403c74, # with pdev
+        0x403b14, # without pdev
+    ],
+    ("cg", "E", 1): [
+        0x40323c, # with pdev
+        0x403704, # without pdev
+    ],
+    ("cg", "E", 2): [
+        0x403c74, # with pdev
+        0x403b1c, # without pdev
+    ],
 }
 
 class PickleArmBoard(ArmBoard):
