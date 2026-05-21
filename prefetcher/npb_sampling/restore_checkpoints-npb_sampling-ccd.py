@@ -36,7 +36,7 @@ private_cache_prefetchers=["stride", "dmp_with_page_walk"]
 OUTPUT_FOLDER = Path("/workdir/ARTIFACTS/results_tbe_64/npb_sampling/")
 MESH = 8
 SAMPLING_DURATION_MILLISECONDS = 100
-MAX_CONCURRENT = 12
+MAX_CONCURRENT = 15
 
 SAMPLING_SITES_BY_APP = {
     "is": ["1"],
@@ -272,10 +272,27 @@ def run_job(job):
 
 
 def main():
-    jobs = build_baseline_jobs() + build_private_cache_prefetcher_jobs() + build_pickle_prefetcher_jobs() + build_pickle_prefetcher_with_private_cache_prefetcher_jobs()
+    jobs = []
+    baseline_jobs = build_baseline_jobs()
+    private_cache_prefetcher_jobs = build_private_cache_prefetcher_jobs()
+    pickle_prefetcher_jobs = build_pickle_prefetcher_jobs()
+    pickle_prefetcher_with_private_cache_prefetcher_jobs = build_pickle_prefetcher_with_private_cache_prefetcher_jobs()
+    
+    # interleaving jobs (4 at a time, 1 from each category) so that we can get all data
+    # for same checkpoint
+    num_sampling_points = len(baseline_jobs)
+    num_private_cache_prefetchers = len(private_cache_prefetchers)
+    assert len(private_cache_prefetcher_jobs) == num_sampling_points * num_private_cache_prefetchers
+    assert len(pickle_prefetcher_jobs) == num_sampling_points
+    assert len(pickle_prefetcher_with_private_cache_prefetcher_jobs) == num_sampling_points * num_private_cache_prefetchers
+
+    for i in range(num_sampling_points):
+        jobs.append(baseline_jobs[i])
+        jobs.append(pickle_prefetcher_jobs[i])
+        jobs.extend(private_cache_prefetcher_jobs[num_private_cache_prefetchers*i:num_private_cache_prefetchers*(i+1)])
+        jobs.extend(pickle_prefetcher_with_private_cache_prefetcher_jobs[num_private_cache_prefetchers*i:num_private_cache_prefetchers*(i+1)])
+
     print(f"Dispatching {len(jobs)} jobs, max {MAX_CONCURRENT} concurrent")
-    for job in jobs:
-        print(job[0])
 
     failures = []
     with ThreadPoolExecutor(max_workers=MAX_CONCURRENT) as pool:
