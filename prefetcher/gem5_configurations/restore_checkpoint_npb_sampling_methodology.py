@@ -244,10 +244,10 @@ processor = SimpleProcessor(cpu_type=CPUTypes.O3, isa=ISA.ARM, num_cores=num_cor
 tracking_pc = {
     ("is", "S", 1): [0x404ff0, 0x405048],
     ("is", "D", 1): [0x404fb8, 0x405000],
-    ("cg", "S", 1): [0x4031e0],
-    ("cg", "S", 2): [0x403c14],
-    ("cg", "E", 1): [0x4031e0],
-    ("cg", "E", 2): [0x403c1c],
+    ("cg", "S", 1): [0x40323c],
+    ("cg", "S", 2): [0x403c74],
+    ("cg", "E", 1): [0x40323c],
+    ("cg", "E", 2): [0x403c74],
 }
 
 class PickleArmBoard(ArmBoard):
@@ -375,7 +375,7 @@ class PickleArmBoard(ArmBoard):
             self.pc_trackers = [ProgramProgressTracker(
                 tracker_agents=self.pc_tracker_agents[i * len(all_cores) : (i + 1) * len(all_cores)],
                 tracking_pc=pc,
-                tracking_interval=10_000 if workload_class != "S" else 2
+                tracking_interval=100_000 if workload_class != "S" else 2
             ) for i, pc in enumerate(tracking_pcs)]
         else:
             assert False, f"No tracking PC found for application {application}, workload class {workload_class}, sampling site {sampling_site}"
@@ -463,7 +463,7 @@ checkpoint_name += f"-mesh_{mesh}"
 checkpoint_name += f"-sampling_site_{sampling_site}"
 checkpoint_name += f"-starting_iter_{starting_iter}"
 checkpoint_name += f"-num_warmup_iters_{num_warmup_iters}"
-checkpoint_path = Path(f"/workdir/ARTIFACTS/checkpoints/{checkpoint_name}")
+checkpoint_path = Path(f"/workdir/LOCAL_ARTIFACTS/checkpoints/{checkpoint_name}")
 board.set_kernel_disk_workload(
     kernel=CustomResource("/workdir/ARTIFACTS/vmlinux-6.6.71"),
     disk_image=CustomDiskImageResource("/workdir/ARTIFACTS/arm64.img.v11"),
