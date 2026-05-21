@@ -116,9 +116,9 @@ def build_private_cache_prefetcher_jobs():
                     outdir = OUTPUT_FOLDER / (
                         f"{application}-{workload_class}"
                         f"-mesh_{MESH}"
-                        f"-prefetcher_{private_cache_prefetcher}"
                         f"-sampling_site_{sampling_site}"
                         f"-sampling_point_{sampling_point}"
+                        f"-prefetcher_{private_cache_prefetcher}"
                     )
                     cmd = [
                         "/workdir/gem5/build/ARM/gem5.opt",
@@ -164,16 +164,16 @@ def build_pickle_prefetcher_jobs():
                     f"-mesh_{MESH}"
                     f"-sampling_site_{sampling_site}"
                     f"-sampling_point_{sampling_point}"
-                    f"-pdev_distance_${PREFETCH_DISTANCE}"
-                    f"-offset_${OFFSET}"
-                    f"-drop_${PREFETCH_DROP_DISTANCE}"
-                    f"-tbe_${PDEV_TBES}"
-                    f"-delegate_${DELEGATE_LAST_LAYER_PREFETCH}"
-                    f"-cache_${PICKLE_CACHE_SIZE}"
-                    f"-mode_${PREFETCH_MODE}"
-                    f"-chunksize_${CHUNK_SIZE}"
-                    f"-bulksize_${PF_PER_HINT}"
-                    f"-llctimeout_${LLC_AGENT_TIMEOUT}"
+                    f"-pdev_distance_{PREFETCH_DISTANCE}"
+                    f"-offset_{OFFSET}"
+                    f"-drop_{PREFETCH_DROP_DISTANCE}"
+                    f"-tbe_{PDEV_TBES}"
+                    f"-delegate_{DELEGATE_LAST_LAYER_PREFETCH}"
+                    f"-cache_{PICKLE_CACHE_SIZE}"
+                    f"-mode_{PREFETCH_MODE}"
+                    f"-chunksize_{CHUNK_SIZE}"
+                    f"-bulksize_{PF_PER_HINT}"
+                    f"-llctimeout_{LLC_AGENT_TIMEOUT}"
                 )
                 cmd = [
                     "/workdir/gem5/build/ARM/gem5.opt",
@@ -218,19 +218,19 @@ def build_pickle_prefetcher_with_private_cache_prefetcher_jobs():
                     outdir = OUTPUT_FOLDER / (
                         f"{application}-{workload_class}"
                         f"-mesh_{MESH}"
-                        f"-prefetcher_{private_cache_prefetcher}"
                         f"-sampling_site_{sampling_site}"
                         f"-sampling_point_{sampling_point}"
-                        f"-pdev_distance_${PREFETCH_DISTANCE}"
-                        f"-offset_${OFFSET}"
-                        f"-drop_${PREFETCH_DROP_DISTANCE}"
-                        f"-tbe_${PDEV_TBES}"
-                        f"-delegate_${DELEGATE_LAST_LAYER_PREFETCH}"
-                        f"-cache_${PICKLE_CACHE_SIZE}"
-                        f"-mode_${PREFETCH_MODE}"
-                        f"-chunksize_${CHUNK_SIZE}"
-                        f"-bulksize_${PF_PER_HINT}"
-                        f"-llctimeout_${LLC_AGENT_TIMEOUT}"
+                        f"-prefetcher_{private_cache_prefetcher}"
+                        f"-pdev_distance_{PREFETCH_DISTANCE}"
+                        f"-offset_{OFFSET}"
+                        f"-drop_{PREFETCH_DROP_DISTANCE}"
+                        f"-tbe_{PDEV_TBES}"
+                        f"-delegate_{DELEGATE_LAST_LAYER_PREFETCH}"
+                        f"-cache_{PICKLE_CACHE_SIZE}"
+                        f"-mode_{PREFETCH_MODE}"
+                        f"-chunksize_{CHUNK_SIZE}"
+                        f"-bulksize_{PF_PER_HINT}"
+                        f"-llctimeout_{LLC_AGENT_TIMEOUT}"
                     )
                     cmd = [
                         "/workdir/gem5/build/ARM/gem5.opt",
