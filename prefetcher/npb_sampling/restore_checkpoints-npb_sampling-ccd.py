@@ -44,7 +44,7 @@ SAMPLING_SITES_BY_APP = {
 }
 
 SAMPLING_POINTS_S = [1, 2, 3]
-SAMPLING_POINTS = list(range(1, 6))
+SAMPLING_POINTS = list(range(1, 31))
 
 PREFETCH_DISTANCE=32
 PREFETCH_DROP_DISTANCE=16
@@ -189,7 +189,7 @@ def build_pickle_prefetcher_jobs():
                     "--enable_pdev=True",
                     "--pickle_cache_size", PICKLE_CACHE_SIZE,
                     "--prefetch_distance", str(PREFETCH_DISTANCE),
-                    "--offset_from_pf_hint", OFFSET,
+                    "--offset_from_pf_hint", str(OFFSET),
                     "--prefetch_drop_distance", str(PREFETCH_DROP_DISTANCE),
                     "--delegate_last_layer_prefetch", DELEGATE_LAST_LAYER_PREFETCH,
                     "--concurrent_work_item_capacity", "64",
@@ -246,7 +246,7 @@ def build_pickle_prefetcher_with_private_cache_prefetcher_jobs():
                         "--enable_pdev=True",
                         "--pickle_cache_size", PICKLE_CACHE_SIZE,
                         "--prefetch_distance", str(PREFETCH_DISTANCE),
-                        "--offset_from_pf_hint", OFFSET,
+                        "--offset_from_pf_hint", str(OFFSET),
                         "--prefetch_drop_distance", str(PREFETCH_DROP_DISTANCE),
                         "--delegate_last_layer_prefetch", DELEGATE_LAST_LAYER_PREFETCH,
                         "--concurrent_work_item_capacity", "64",
