@@ -244,7 +244,7 @@ processor = SimpleProcessor(cpu_type=CPUTypes.O3, isa=ISA.ARM, num_cores=num_cor
 tracking_pc = {
     ("is", "S", 1): [
         0x404ff0, 0x405048, # with pdev
-        0x404e3c. 0x404f14, # without pdev
+        0x404e3c, 0x404f14, # without pdev
     ],
     ("is", "D", 1): [
         0x404fb8, 0x405000, # with pdev
