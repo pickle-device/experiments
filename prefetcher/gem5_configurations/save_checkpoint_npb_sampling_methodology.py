@@ -65,6 +65,11 @@ mesh = args.mesh
 sampling_site = args.sampling_site
 sampling_point = args.sampling_point
 
+is_test = False
+if workload_class.endswith("test"):
+    workload_class = workload_class.split("_")[0]
+    is_test = True
+
 # read the sampling points from the sampling point file
 # example:
 #      Input:  Workload: cg
@@ -78,7 +83,10 @@ sampling_point = args.sampling_point
 #          Sampling Point 3: Starting Iter = 2414799, Num Warmup Iters = 3987
 #          Sampling Point 4: Starting Iter = 7760004, Num Warmup Iters = 3963
 #          Sampling Point 5: Starting Iter = 6205510, Num Warmup Iters = 3984
-sampling_point_file = f"/workdir/experiments/prefetcher/gem5_configurations/npb_sampling_points/{application}.{workload_class}.sampling_site-{sampling_site}.llc-32MiB.sampling_points.txt"
+if not is_test:
+    sampling_point_file = f"/workdir/experiments/prefetcher/gem5_configurations/npb_sampling_points/{application}.{workload_class}.sampling_site-{sampling_site}.llc-32MiB.sampling_points.txt"
+else:
+    sampling_point_file = f"/workdir/experiments/prefetcher/gem5_configurations/npb_sampling_points/{application}.{workload_class}_test.sampling_site-{sampling_site}.llc-32MiB.sampling_points.txt"
 sampling_points = {}
 class SamplingPoint:
     def __init__(self, starting_iter, num_warmup_iters):
