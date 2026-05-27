@@ -1,4 +1,6 @@
 import argparse
+from datetime import datetime
+import os
 from pathlib import Path
 import time
 
@@ -591,3 +593,8 @@ print(
 )
 
 print("Exit cause: ", simulator.get_last_exit_event_cause())
+
+outdir = m5.options.outdir
+with open(os.path.join(m5.options.outdir, "done"), "w") as f:
+    f.write(datetime.now().isoformat() + "\n")
+

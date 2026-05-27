@@ -36,7 +36,7 @@ private_cache_prefetchers=["stride", "dmp_with_page_walk"]
 OUTPUT_FOLDER = Path("/workdir/ARTIFACTS/results_tbe_64/npb_sampling/")
 MESH = 8
 SAMPLING_DURATION_MILLISECONDS = 100
-MAX_CONCURRENT = 15
+MAX_CONCURRENT = 10
 
 SAMPLING_SITES_BY_APP = {
     "is": ["1"],
