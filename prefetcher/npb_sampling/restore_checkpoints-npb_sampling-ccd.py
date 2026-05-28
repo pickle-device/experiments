@@ -36,7 +36,7 @@ private_cache_prefetchers=["stride", "dmp_with_page_walk"]
 OUTPUT_FOLDER = Path("/workdir/ARTIFACTS/results_tbe_64/npb_sampling/")
 MESH = 8
 SAMPLING_DURATION_MILLISECONDS = 100
-MAX_CONCURRENT = 10
+MAX_CONCURRENT = 2
 
 SAMPLING_SITES_BY_APP = {
     "is": ["1"],
@@ -58,6 +58,14 @@ PF_PER_HINT=1
 LLC_AGENT_TIMEOUT=10000 # in cycles
 
 
+def is_complete(outdir: Path, expected_dumps: int) -> bool:
+    stats = outdir / "stats.txt"
+    if not stats.exists():
+        return False
+    with stats.open() as f:
+        return sum(1 for line in f if line.startswith("simSeconds")) >= expected_dumps
+
+
 def build_baseline_jobs():
     jobs = []
     for pair in application_workload_class_pairs:
@@ -73,6 +81,9 @@ def build_baseline_jobs():
                     f"-sampling_point_{sampling_point}"
                     f"-baseline"
                 )
+                if is_complete(outdir, expected_dumps = 4):
+                    print(f"[skip] {outdir.name}")
+                    continue
                 cmd = [
                     "/workdir/gem5/build/ARM/gem5.opt",
                     "-re",
@@ -120,6 +131,9 @@ def build_private_cache_prefetcher_jobs():
                         f"-sampling_point_{sampling_point}"
                         f"-prefetcher_{private_cache_prefetcher}"
                     )
+                    if is_complete(outdir, expected_dumps = 4):
+                        print(f"[skip] {outdir.name}")
+                        continue
                     cmd = [
                         "/workdir/gem5/build/ARM/gem5.opt",
                         "-re",
@@ -175,6 +189,9 @@ def build_pickle_prefetcher_jobs():
                     f"-bulksize_{PF_PER_HINT}"
                     f"-llctimeout_{LLC_AGENT_TIMEOUT}"
                 )
+                if is_complete(outdir, expected_dumps = 4):
+                    print(f"[skip] {outdir.name}")
+                    continue
                 cmd = [
                     "/workdir/gem5/build/ARM/gem5.opt",
                     "-re",
@@ -232,6 +249,9 @@ def build_pickle_prefetcher_with_private_cache_prefetcher_jobs():
                         f"-bulksize_{PF_PER_HINT}"
                         f"-llctimeout_{LLC_AGENT_TIMEOUT}"
                     )
+                    if is_complete(outdir, expected_dumps = 4):
+                        print(f"[skip] {outdir.name}")
+                        continue
                     cmd = [
                         "/workdir/gem5/build/ARM/gem5.opt",
                         "-re",
@@ -277,20 +297,11 @@ def main():
     private_cache_prefetcher_jobs = build_private_cache_prefetcher_jobs()
     pickle_prefetcher_jobs = build_pickle_prefetcher_jobs()
     pickle_prefetcher_with_private_cache_prefetcher_jobs = build_pickle_prefetcher_with_private_cache_prefetcher_jobs()
-    
-    # interleaving jobs (4 at a time, 1 from each category) so that we can get all data
-    # for same checkpoint
-    num_sampling_points = len(baseline_jobs)
-    num_private_cache_prefetchers = len(private_cache_prefetchers)
-    assert len(private_cache_prefetcher_jobs) == num_sampling_points * num_private_cache_prefetchers
-    assert len(pickle_prefetcher_jobs) == num_sampling_points
-    assert len(pickle_prefetcher_with_private_cache_prefetcher_jobs) == num_sampling_points * num_private_cache_prefetchers
 
-    for i in range(num_sampling_points):
-        jobs.append(baseline_jobs[i])
-        jobs.append(pickle_prefetcher_jobs[i])
-        jobs.extend(private_cache_prefetcher_jobs[num_private_cache_prefetchers*i:num_private_cache_prefetchers*(i+1)])
-        jobs.extend(pickle_prefetcher_with_private_cache_prefetcher_jobs[num_private_cache_prefetchers*i:num_private_cache_prefetchers*(i+1)])
+    #jobs.extend(baseline_jobs)
+    #jobs.extend(private_cache_prefetcher_jobs)
+    jobs.extend(pickle_prefetcher_jobs)
+    #jobs.extend(pickle_prefetcher_with_private_cache_prefetcher_jobs)
 
     print(f"Dispatching {len(jobs)} jobs, max {MAX_CONCURRENT} concurrent")
 
