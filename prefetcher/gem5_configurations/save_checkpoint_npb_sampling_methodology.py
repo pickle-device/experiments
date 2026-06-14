@@ -92,17 +92,43 @@ class SamplingPoint:
     def __init__(self, starting_iter, num_warmup_iters):
         self.starting_iter = starting_iter
         self.num_warmup_iters = num_warmup_iters
-with open(sampling_point_file, "r") as f:
-    for line in f:
-        line = line.strip()
-        if line.startswith("Sampling Point "):
-            parts = line.split(" ")
-            sampling_point_number = int(parts[2][:-1])
-            starting_iter = int(parts[6][:-1])
-            num_warmup_iters = int(parts[-1])
-            sampling_points[sampling_point_number] = SamplingPoint(starting_iter, num_warmup_iters)
-starting_iter = sampling_points[sampling_point].starting_iter
-num_warmup_iters = sampling_points[sampling_point].num_warmup_iters
+class UA_SamplingPoint:
+    def __init__(self, ua_step, cg_iter, starting_element, num_warmup_elements):
+        self.ua_step = ua_step
+        self.cg_iter = cg_iter
+        self.starting_element = starting_element
+        self.num_warmup_elements = num_warmup_elements
+if application in {"is", "cg"}:
+    with open(sampling_point_file, "r") as f:
+        for line in f:
+            line = line.strip()
+            if line.startswith("Sampling Point "):
+                parts = line.split(" ")
+                sampling_point_number = int(parts[2][:-1])
+                starting_iter = int(parts[6][:-1])
+                num_warmup_iters = int(parts[-1])
+                sampling_points[sampling_point_number] = SamplingPoint(starting_iter, num_warmup_iters)
+        starting_iter = sampling_points[sampling_point].starting_iter
+        num_warmup_iters = sampling_points[sampling_point].num_warmup_iters
+elif application == "ua":
+    with open(sampling_point_file, "r") as f:
+        for line in f:
+            line = line.strip()
+            if line.startswith("Sampling Point "):
+                parts = line.split(" ")
+                print(parts)
+                sampling_point_number = int(parts[2][:-1])
+                ua_step = int(parts[6][:-1])
+                cg_iter = int(parts[10][:-1])
+                starting_element = int(parts[14][:-1])
+                num_warmup_elements = int(parts[-1])
+                sampling_points[sampling_point_number] = UA_SamplingPoint(ua_step, cg_iter, starting_element, num_warmup_elements)
+        ua_step = sampling_points[sampling_point].ua_step
+        cg_iter = sampling_points[sampling_point].cg_iter
+        starting_element = sampling_points[sampling_point].starting_element
+        num_warmup_elements = sampling_points[sampling_point].num_warmup_elements
+else:
+    assert False, f"Unsupported application: {application}"
 
 # validate the arguments
 if application == "cg":
@@ -268,19 +294,21 @@ board = PickleArmBoard(
     platform=VExpress_GEM5_V1(),
 )
 board.compression_type = CompressionType("ZSTD")
-board.checkpoint_mem_checksum = False
+board.checkpoint_mem_checksum = True
 
 command_prefix = ""
 if application == "is":
     command = f"{command_prefix} /home/ubuntu/NPB/NPB3.4-OMP/bin/{application}.{workload_class}.x.sampling.m5.pdev {starting_iter} {num_warmup_iters}"
 elif application == "cg":
     command = f"{command_prefix} /home/ubuntu/NPB/NPB3.4-OMP/bin/{application}.{workload_class}.x.sampling.m5.pdev {sampling_site} {starting_iter} {num_warmup_iters}"
+elif application == "ua":
+    command = f"{command_prefix} /home/ubuntu/NPB/NPB3.4-OMP/bin/{application}.{workload_class}.x.sampling.m5.pdev {sampling_site} {ua_step} {cg_iter} {starting_element} {num_warmup_elements}"
 else:
     raise UnimplementedError(f"Application {application} is not implemented")
 
 board.set_kernel_disk_workload(
     kernel=CustomResource("/workdir/ARTIFACTS/linux-6.6.71/vmlinux"),
-    disk_image=CustomDiskImageResource("/workdir/ARTIFACTS/arm64.img.v11"),
+    disk_image=CustomDiskImageResource("/workdir/ARTIFACTS/arm64.img.v12"),
     #bootloader=obtain_resource("arm64-bootloader", resource_version="1.0.0"),
     bootloader=CustomResource("/workdir/.cache/gem5/arm64-bootloader"),
     readfile_contents=command,
@@ -327,8 +355,14 @@ simulator.run()
 checkpoint_name = f"{application}-{workload_class}"
 checkpoint_name += f"-mesh_{mesh}"
 checkpoint_name += f"-sampling_site_{sampling_site}"
-checkpoint_name += f"-starting_iter_{starting_iter}"
-checkpoint_name += f"-num_warmup_iters_{num_warmup_iters}"
+if application in {"is", "cg"}:
+    checkpoint_name += f"-starting_iter_{starting_iter}"
+    checkpoint_name += f"-num_warmup_iters_{num_warmup_iters}"
+elif application == "ua":
+    checkpoint_name += f"-ua_step_{ua_step}"
+    checkpoint_name += f"-cg_iter_{cg_iter}"
+    checkpoint_name += f"-starting_element_{starting_element}"
+    checkpoint_name += f"-num_warmup_elements_{num_warmup_elements}"
 simulator.save_checkpoint(Path(f"/workdir/ARTIFACTS/checkpoints/{checkpoint_name}"))
 
 print(f"Ran a total of {simulator.get_current_tick() / 1e12} simulated seconds")
