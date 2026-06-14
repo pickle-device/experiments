@@ -545,10 +545,16 @@ elif application == "ua":
     checkpoint_name += f"-cg_iter_{cg_iter}"
     checkpoint_name += f"-starting_element_{starting_element}"
     checkpoint_name += f"-num_warmup_elements_{num_warmup_elements}"
-checkpoint_path = Path(f"/workdir/ARTIFACTS/checkpoints/{checkpoint_name}")
+checkpoint_path = Path(f"/workdir/LOCAL_ARTIFACTS/checkpoints/{checkpoint_name}")
+if application in {"cg", "is"}:
+    disk_image_version = "v11"
+elif application == "ua":
+    disk_image_version = "v12"
+else:
+    raise UnimplementedError(f"Application {application} is not implemented")
 board.set_kernel_disk_workload(
     kernel=CustomResource("/workdir/ARTIFACTS/vmlinux-6.6.71"),
-    disk_image=CustomDiskImageResource("/workdir/ARTIFACTS/arm64.img.v12"),
+    disk_image=CustomDiskImageResource(f"/workdir/ARTIFACTS/arm64.img.{disk_image_version}"),
     #bootloader=obtain_resource("arm64-bootloader", resource_version="1.0.0"),
     bootloader=CustomResource("/workdir/.cache/gem5/arm64-bootloader"),
     checkpoint=checkpoint_path,
