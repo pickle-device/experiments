@@ -307,20 +307,20 @@ tracking_pc = {
         0x403b1c, # without pdev
     ],
     ("ua", "S", 1): [
-        0x42307c, # with pdev
-        0x421848, # without pdev
+        0x42280c, # with pdev
+        0x420fd8, # without pdev
     ],
     ("ua", "D", 1): [
-        0x42315c, # with pdev
-        0x42192c, # without pdev
+        0x4228ec, # with pdev
+        0x4210bc, # without pdev
     ],
     ("ua", "S", 2): [
-        0x427048, # with pdev
-        0x425d28, # without pdev
+        0x4267d8, # with pdev
+        0x4254b8, # without pdev
     ],
     ("ua", "D", 2): [
-        0x427128, # with pdev
-        0x425e08, # without pdev
+        0x4268b8, # with pdev
+        0x425598, # without pdev
     ],
 }
 
