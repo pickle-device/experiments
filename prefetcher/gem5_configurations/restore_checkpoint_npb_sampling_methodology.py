@@ -92,6 +92,7 @@ parser.add_argument(
 parser.add_argument("--sssp_threshold_optimization_enabled", type=str, required=False, default="True", choices={"True", "False"})
 parser.add_argument("--bc_depth_optimization_enabled", type=str, required=False, default="False", choices={"True", "False"})
 parser.add_argument("--bc_depth_prefetch_to_both_llc_and_pickle_enabled", type=str, required=False, default="False", choices={"True", "False"})
+parser.add_argument("--ua_cbc_optimization_enabled", type=str, required=False, default="True", choices={"True", "False"})
 parser.add_argument("--functional_pickle_mmu", type=str, required=False, default="False", choices={"True", "False"})
 parser.add_argument("--llc_size", type=str, required=False, default="32MiB", choices={"16MiB", "32MiB", "64MiB"})
 parser.add_argument("--ddr_technology", type=str, required=False, default="DDR5@8400", choices={"DDR3@1600", "DDR4@2400", "DDR5@8400"})
@@ -128,6 +129,7 @@ llc_delegation_timeout = args.llc_delegation_timeout
 sssp_threshold_optimization_enabled = args.sssp_threshold_optimization_enabled == "True"
 bc_depth_optimization_enabled = args.bc_depth_optimization_enabled == "True"
 bc_depth_prefetch_to_both_llc_and_pickle_enabled = args.bc_depth_prefetch_to_both_llc_and_pickle_enabled == "True"
+ua_cbc_optimization_enabled = args.ua_cbc_optimization_enabled == "True"
 functional_pickle_mmu = args.functional_pickle_mmu == "True"
 llc_size = args.llc_size
 ddr_technology = args.ddr_technology
@@ -392,6 +394,7 @@ class PickleArmBoard(ArmBoard):
                 prefetch_scheduling_policy=prefetch_scheduling_policy,
                 sssp_threshold_optimization_enabled=sssp_threshold_optimization_enabled,
                 bc_depth_optimization_enabled=bc_depth_optimization_enabled,
+                ua_cbc_optimization_enabled=ua_cbc_optimization_enabled,
                 #bc_depth_prefetch_to_both_llc_and_pickle_enabled=bc_depth_prefetch_to_both_llc_and_pickle_enabled,
             )
             for i in range(num_PD_tiles)
