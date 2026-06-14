@@ -1,0 +1,36 @@
+Input:  Workload: ua
+  Class: D
+  Sampling Site: 3
+  LLC Size: 32 MiB
+  Number of Sampling Points: 30
+  Sampling Points:
+    Sampling Point 1: UA Step = 70, CG Iter = 7, Starting Element = 255868, Num Warmup Elements = 8631
+    Sampling Point 2: UA Step = 66, CG Iter = 2, Starting Element = 158960, Num Warmup Elements = 8631
+    Sampling Point 3: UA Step = 87, CG Iter = 1, Starting Element = 37924, Num Warmup Elements = 8631
+    Sampling Point 4: UA Step = 124, CG Iter = 1, Starting Element = 60209, Num Warmup Elements = 8631
+    Sampling Point 5: UA Step = 80, CG Iter = 1, Starting Element = 471402, Num Warmup Elements = 8631
+    Sampling Point 6: UA Step = 160, CG Iter = 2, Starting Element = 70785, Num Warmup Elements = 8631
+    Sampling Point 7: UA Step = 70, CG Iter = 3, Starting Element = 110631, Num Warmup Elements = 8631
+    Sampling Point 8: UA Step = 218, CG Iter = 7, Starting Element = 39297, Num Warmup Elements = 8631
+    Sampling Point 9: UA Step = 157, CG Iter = 7, Starting Element = 74872, Num Warmup Elements = 8631
+    Sampling Point 10: UA Step = 180, CG Iter = 1, Starting Element = 483896, Num Warmup Elements = 8631
+    Sampling Point 11: UA Step = 9, CG Iter = 3, Starting Element = 168122, Num Warmup Elements = 8631
+    Sampling Point 12: UA Step = 65, CG Iter = 6, Starting Element = 406372, Num Warmup Elements = 8631
+    Sampling Point 13: UA Step = 186, CG Iter = 6, Starting Element = 49155, Num Warmup Elements = 8631
+    Sampling Point 14: UA Step = 106, CG Iter = 2, Starting Element = 11133, Num Warmup Elements = 8631
+    Sampling Point 15: UA Step = 193, CG Iter = 6, Starting Element = 166194, Num Warmup Elements = 8631
+    Sampling Point 16: UA Step = 201, CG Iter = 7, Starting Element = 366574, Num Warmup Elements = 8631
+    Sampling Point 17: UA Step = 225, CG Iter = 9, Starting Element = 346406, Num Warmup Elements = 8631
+    Sampling Point 18: UA Step = 138, CG Iter = 10, Starting Element = 424804, Num Warmup Elements = 8631
+    Sampling Point 19: UA Step = 180, CG Iter = 5, Starting Element = 310986, Num Warmup Elements = 8631
+    Sampling Point 20: UA Step = 170, CG Iter = 1, Starting Element = 258307, Num Warmup Elements = 8631
+    Sampling Point 21: UA Step = 233, CG Iter = 6, Starting Element = 478028, Num Warmup Elements = 8631
+    Sampling Point 22: UA Step = 54, CG Iter = 6, Starting Element = 81765, Num Warmup Elements = 8631
+    Sampling Point 23: UA Step = 161, CG Iter = 1, Starting Element = 130900, Num Warmup Elements = 8631
+    Sampling Point 24: UA Step = 128, CG Iter = 10, Starting Element = 222312, Num Warmup Elements = 8631
+    Sampling Point 25: UA Step = 76, CG Iter = 4, Starting Element = 217316, Num Warmup Elements = 8631
+    Sampling Point 26: UA Step = 99, CG Iter = 7, Starting Element = 75201, Num Warmup Elements = 8631
+    Sampling Point 27: UA Step = 150, CG Iter = 8, Starting Element = 290653, Num Warmup Elements = 8631
+    Sampling Point 28: UA Step = 23, CG Iter = 9, Starting Element = 201546, Num Warmup Elements = 8631
+    Sampling Point 29: UA Step = 16, CG Iter = 9, Starting Element = 321101, Num Warmup Elements = 8631
+    Sampling Point 30: UA Step = 232, CG Iter = 1, Starting Element = 327289, Num Warmup Elements = 8631

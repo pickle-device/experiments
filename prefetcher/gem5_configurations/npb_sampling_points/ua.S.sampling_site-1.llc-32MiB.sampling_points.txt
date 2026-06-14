@@ -1,0 +1,9 @@
+Input:  Workload: ua
+  Class: S
+  Sampling Site: 1
+  LLC Size: 32 MiB
+  Number of Sampling Points: 3
+  Sampling Points:
+    Sampling Point 1: UA Step = 1, CG Iteration = 1, Starting Element = 1, Num Warmup Elements = 10
+    Sampling Point 2: UA Step = 5, CG Iteration = 3, Starting Element = 4, Num Warmup Elements = 20
+    Sampling Point 3: UA Step = 10, CG Iteration = 5, Starting Element = 30, Num Warmup Elements = 52
