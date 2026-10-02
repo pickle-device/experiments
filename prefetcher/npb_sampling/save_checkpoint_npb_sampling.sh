@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #application_workload_class_pairs=("is-S" "is-D" "cg-S" "cg-E")
-application_workload_class_pairs=("is-S" "is-D" "cg-S")
+application_workload_class_pairs=("ua-D")
 meshes=("8")
 OUTPUT_FOLDER="/workdir/ARTIFACTS/results_v8/"
 
@@ -15,6 +15,9 @@ do
             sampling_sites=("1")
         elif [ "$application" == "cg" ]; then
             sampling_sites=("1" "2")
+        elif [ "$application" == "ua" ]; then
+            #sampling_sites=("1" "2" "3" "4")
+            sampling_sites=("1")
         fi
         if [ "$workload_class" != "S" ]; then
             num_sampling_points=30
@@ -28,7 +31,7 @@ do
                 echo "Running $application-$workload_class with mesh $mesh sampling_site $sampling_site sampling_point $sampling_point"
                 HOME=/workdir /workdir/gem5/build/ARM/gem5.opt \
                         -re \
-                    --outdir ${OUTPUT_FOLDER}/$application-$workload_class-mesh_$mesh-checkpoint \
+                    --outdir ${OUTPUT_FOLDER}/$application-$workload_class-mesh_$mesh-sampling_site_$sampling_site-sampling_point_$sampling_point-checkpoint \
                     experiments/prefetcher/gem5_configurations/save_checkpoint_npb_sampling_methodology.py \
                     --application $application \
                     --workload_class $workload_class \

@@ -61,7 +61,7 @@ prefetch_mode_map = {
 }
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--application", type=str, required=True, choices={"bc", "bfs", "cc", "pr", "sssp", "tc", "spmv", "is", "cg"})
+parser.add_argument("--application", type=str, required=True, choices={"bc", "bfs", "cc", "pr", "sssp", "tc", "spmv", "is", "cg", "ua"})
 parser.add_argument("--graph_name", type=str, required=True)
 parser.add_argument("--enable_pdev", type=str, required=True, choices={"True", "False"})
 parser.add_argument("--pickle_cache_size", type=str, required=True, help="Prefetcher cache size, e.g., 4KiB")
@@ -174,6 +174,7 @@ def getNumPrefetchGeneratorsForApplication(application):
         "spmv": 1,
         "is": 1,
         "cg": 2,
+        "ua": 2,
     }[application]
 
 mesh_cache = MeshCacheWithPickleDevice(
@@ -519,7 +520,7 @@ checkpoint_name = f"{application}-{graph_name}-mesh_{mesh}"
 checkpoint_path = Path(f"/workdir/ARTIFACTS/checkpoints/{checkpoint_name}")
 board.set_kernel_disk_workload(
     kernel=CustomResource("/workdir/ARTIFACTS/vmlinux-6.6.71"),
-    disk_image=CustomDiskImageResource("/workdir/ARTIFACTS/arm64.img.v9"),
+    disk_image=CustomDiskImageResource("/workdir/ARTIFACTS/arm64.img.v10"),
     #bootloader=obtain_resource("arm64-bootloader", resource_version="1.0.0"),
     bootloader=CustomResource("/workdir/.cache/gem5/arm64-bootloader"),
     checkpoint=checkpoint_path,
