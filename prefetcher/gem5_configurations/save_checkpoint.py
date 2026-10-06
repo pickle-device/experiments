@@ -53,11 +53,13 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--application", type=str, required=True, choices={"bc", "bfs", "cc", "pr", "tc", "sssp", "spmv", "is", "cg"})
 parser.add_argument("--graph_name", type=str, required=True)
 parser.add_argument("--mesh", type=int, required=True, choices={8, 10})
+parser.add_argument("--with_cxl_mem", type=str, required=True, choices={"True", "False"})
 args = parser.parse_args()
 
 application = args.application
 graph_name = args.graph_name
 mesh = args.mesh
+with_cxl_mem = args.with_cxl_mem == "True"
 # from _m5.core import setOutputDir
 # setOutputDir(f"/workdir/ARTIFACTS/results/bfs-pickle-{graph_name}-distance-32")
 
@@ -99,12 +101,23 @@ mesh_cache = MeshCacheWithPickleDevice(
 )
 
 # Main memory
-memory = ChanneledMemory(
+local_memory = ChanneledMemory(
     dram_interface_class=DDR5_8400_4x8,
     num_channels=mesh_descriptor.get_num_mem_tiles(),
     interleaving_size=64,
     size=choose_memory_size(application, graph_name),
 )
+
+# CXL Expander
+if with_cxl_mem:
+    cxl_memory = ChanneledMemory(
+        dram_interface_class=DDR4_2400_8x8,
+        num_channels=2,
+        interleaving_size=64,
+        size="2GiB",
+    )
+else:
+    cxl_memory = None
 
 processor = SimpleProcessor(cpu_type=CPUTypes.KVM, isa=ISA.ARM, num_cores=num_cores)
 
@@ -115,18 +128,24 @@ if fast_forward_cpu_type == CPUTypes.KVM:
 
 
 class PickleArmBoard(ArmBoard):
-    def __init__(self, clk_freq, processor, memory, cache_hierarchy, release, platform):
+    def __init__(self, clk_freq, processor, local_memory, memory_over_cxl, cache_hierarchy, release, platform):
         super().__init__(
             clk_freq=clk_freq,
             processor=processor,
-            memory=memory,
+            memory=local_memory,
             cache_hierarchy=cache_hierarchy,
             release=release,
             platform=platform,
+            memory_over_cxl=memory_over_cxl,
         )
 
     @overrides(ArmBoard)
     def get_default_kernel_args(self):
+        local_memory_size = self.memory.get_size()
+        cxl_memory_size = 0
+        if self._has_cxl_memory:
+            cxl_memory_size = self.memory_over_cxl.get_size()
+        total_memory_size = local_memory_size + cxl_memory_size
         # The default kernel string is taken from the devices.py file.
         return [
             "console=ttyAMA0",
@@ -135,7 +154,7 @@ class PickleArmBoard(ArmBoard):
             "root=/dev/vda1",
             "disk_device=/dev/vda1",
             "rw",
-            f"mem={self.get_memory().get_size()}",
+            f"mem={total_memory_size}",
             "init=/home/ubuntu/gem5-init.sh",
         ]
 
@@ -207,7 +226,8 @@ class PickleArmBoard(ArmBoard):
 board = PickleArmBoard(
     clk_freq="4GHz",
     processor=processor,
-    memory=memory,
+    local_memory=local_memory,
+    memory_over_cxl=cxl_memory,
     cache_hierarchy=mesh_cache,
     release=ArmDefaultRelease.for_kvm(),
     platform=VExpress_GEM5_V1(),
@@ -371,6 +391,8 @@ simulator.run()
 
 checkpoint_name = f"{application}-{graph_name}"
 checkpoint_name += f"-mesh_{mesh}"
+if with_cxl_mem:
+    checkpoint_name += "-cxl_mem"
 simulator.save_checkpoint(Path(f"/workdir/ARTIFACTS/checkpoints/{checkpoint_name}"))
 
 print(f"Ran a total of {simulator.get_current_tick() / 1e12} simulated seconds")
