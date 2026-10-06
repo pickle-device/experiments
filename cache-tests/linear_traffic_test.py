@@ -31,6 +31,7 @@ from m5.objects import (
 )
 
 from gem5.components.boards.test_board import TestBoard
+from gem5.components.memory.dram_interfaces.ddr4 import DDR4_2400_8x8
 from gem5.components.memory.dram_interfaces.ddr5 import DDR5_8400_4x8
 from gem5.components.memory.memory import ChanneledMemory
 from gem5.components.processors.linear_generator import LinearGenerator
@@ -41,23 +42,30 @@ from MeshCache.MeshCache import MeshCache
 from MeshCache.MeshCacheWithPickleDevice import MeshCacheWithPickleDevice
 from MeshCache.components.PrebuiltMesh import PrebuiltMesh
 
-mesh_descriptor = PrebuiltMesh.getMesh9("Mesh9")
-
 generator = LinearGenerator(
     num_cores=1,
     duration="1ms",
     rate="32GiB/s",
-    max_addr=2 ** 16,
+    min_addr=2 ** 30 - 2**8,
+    max_addr=2 ** 31,
     rd_perc=100,
 )
+
+cxl_memory = ChanneledMemory(
+    dram_interface_class=DDR4_2400_8x8,
+    num_channels=2,
+    interleaving_size=64,
+    size="1GiB",
+)
+
+mesh_descriptor = PrebuiltMesh.getMesh9("Mesh9", has_memory_over_cxl=cxl_memory is not None)
 
 memory = ChanneledMemory(
     dram_interface_class=DDR5_8400_4x8,
     num_channels=mesh_descriptor.get_num_mem_tiles(),
     interleaving_size=64,
-    size="4GiB",
+    size="1GiB",
 )
-
 mesh_cache = MeshCache(
     l1i_size="32KiB",
     l1i_assoc=8,
@@ -69,17 +77,20 @@ mesh_cache = MeshCache(
     l3_assoc=16,
     num_core_complexes=1,
     is_fullsystem=False,
+    data_prefetcher_class=None,
     mesh_descriptor=mesh_descriptor,
+    pci_link_latency_in_cycles=200,
 )
 
 
 class PickleTestBoard(TestBoard):
-    def __init__(self, clk_freq, generator, memory, cache_hierarchy):
+    def __init__(self, clk_freq, generator, memory, cache_hierarchy, memory_over_cxl):
         super().__init__(
             clk_freq=clk_freq,
             generator=generator,
             memory=memory,
             cache_hierarchy=cache_hierarchy,
+            memory_over_cxl=memory_over_cxl,
         )
 
     @overrides(TestBoard)
@@ -108,10 +119,11 @@ class PickleTestBoard(TestBoard):
 
 
 board = PickleTestBoard(
-    clk_freq="1GHz",  # setting the clk period for the whole system
+    clk_freq="4GHz",  # setting the clk period for the whole system
     generator=generator,
     memory=memory,
     cache_hierarchy=mesh_cache,
+    memory_over_cxl=cxl_memory,
 )
 
 simulator = Simulator(board=board)
