@@ -44,7 +44,7 @@ from MeshCache.components.PrebuiltMesh import PrebuiltMesh
 
 generator = LinearGenerator(
     num_cores=1,
-    duration="1ms",
+    duration="2ms",
     rate="32GiB/s",
     min_addr=2 ** 30 - 2**8,
     max_addr=2 ** 31,
@@ -126,5 +126,12 @@ board = PickleTestBoard(
     memory_over_cxl=cxl_memory,
 )
 
+
 simulator = Simulator(board=board)
-simulator.run()
+simulator.run(1)
+for mem_ctrl in memory.mem_ctrl:
+    mem_ctrl.enableActiveDataTracker()
+if cxl_memory is not None:
+    for mem_ctrl in cxl_memory.mem_ctrl:
+        mem_ctrl.enableActiveDataTracker()
+simulator.run(10**12)
