@@ -63,6 +63,7 @@ prefetch_mode_map = {
 parser = argparse.ArgumentParser()
 parser.add_argument("--application", type=str, required=True, choices={"bc", "bfs", "cc", "pr", "sssp", "tc", "spmv", "is", "cg", "ua"})
 parser.add_argument("--graph_name", type=str, required=True)
+parser.add_argument("--with_cxl_mem", type=str, required=True, choices={"True", "False"})
 parser.add_argument("--enable_pdev", type=str, required=True, choices={"True", "False"})
 parser.add_argument("--pickle_cache_size", type=str, required=True, help="Prefetcher cache size, e.g., 4KiB")
 parser.add_argument("--prefetch_distance", type=int, required=True)
@@ -99,6 +100,7 @@ args = parser.parse_args()
 
 application = args.application
 graph_name = args.graph_name
+with_cxl_mem = args.with_cxl_mem == "True"
 enable_pdev = args.enable_pdev == "True"
 pickle_cache_size = args.pickle_cache_size
 prefetch_distance = args.prefetch_distance
@@ -143,9 +145,9 @@ print(f"Num PDEV TBEs: {pdev_num_tbes}")
 # setOutputDir(f"/workdir/ARTIFACTS/results/bfs-pickle-{graph_name}-distance-32")
 
 if mesh == 8:
-    mesh_descriptor = PrebuiltMesh.getMesh8("Mesh8")
+    mesh_descriptor = PrebuiltMesh.getMesh8("Mesh8", has_memory_over_cxl=with_cxl_mem)
 elif mesh == 10:
-    mesh_descriptor = PrebuiltMesh.getMesh10("Mesh10")
+    mesh_descriptor = PrebuiltMesh.getMesh10("Mesh10", has_memory_over_cxl=with_cxl_mem)
 else:
     assert False, f"Unsupported mesh: {mesh}"
 
@@ -193,6 +195,7 @@ mesh_cache = MeshCacheWithPickleDevice(
     mesh_descriptor=mesh_descriptor,
     data_prefetcher_class=private_cache_prefetcher,
     pdev_num_tbes=pdev_num_tbes,
+    pci_link_latency_in_cycles=200,
 )
 
 # Main memory
@@ -201,12 +204,22 @@ dram_class = {
     "DDR4@2400": DDR4_2400_8x8,
     "DDR5@8400": DDR5_8400_4x8,
 }[ddr_technology]
-memory = ChanneledMemory(
+local_memory = ChanneledMemory(
     dram_interface_class=dram_class,
     num_channels=mesh_descriptor.get_num_mem_tiles(),
     interleaving_size=64,
     size=memory_size,
 )
+# CXL Expander
+if with_cxl_mem:
+    cxl_memory = ChanneledMemory(
+        dram_interface_class=DDR4_2400_8x8,
+        num_channels=2,
+        interleaving_size=64,
+        size="2GiB",
+    )
+else:
+    cxl_memory = None
 
 processor = SimpleProcessor(cpu_type=CPUTypes.O3, isa=ISA.ARM, num_cores=num_cores)
 
@@ -216,18 +229,24 @@ tracking_pc = {
 }
 
 class PickleArmBoard(ArmBoard):
-    def __init__(self, clk_freq, processor, memory, cache_hierarchy, release, platform):
+    def __init__(self, clk_freq, processor, local_memory, memory_over_cxl, cache_hierarchy, release, platform):
         super().__init__(
             clk_freq=clk_freq,
             processor=processor,
-            memory=memory,
+            memory=local_memory,
             cache_hierarchy=cache_hierarchy,
             release=release,
             platform=platform,
+            memory_over_cxl=memory_over_cxl,
         )
 
     @overrides(ArmBoard)
     def get_default_kernel_args(self):
+        local_memory_size = self.memory.get_size()
+        cxl_memory_size = 0
+        if self._has_cxl_memory:
+            cxl_memory_size = self.memory_over_cxl.get_size()
+        total_memory_size = local_memory_size + cxl_memory_size
         # The default kernel string is taken from the devices.py file.
         return [
             "console=ttyAMA0",
@@ -236,7 +255,7 @@ class PickleArmBoard(ArmBoard):
             "root=/dev/vda1",
             "disk_device=/dev/vda1",
             "rw",
-            f"mem={self.get_memory().get_size()}",
+            f"mem={total_memory_size}",
             "init=/home/ubuntu/gem5-init.sh",
         ]
 
@@ -404,7 +423,8 @@ class PickleArmBoard(ArmBoard):
 board = PickleArmBoard(
     clk_freq="4GHz",
     processor=processor,
-    memory=memory,
+    local_memory=local_memory,
+    memory_over_cxl=cxl_memory,
     cache_hierarchy=mesh_cache,
     release=ArmDefaultRelease.for_kvm(),
     platform=VExpress_GEM5_V1(),
@@ -517,6 +537,8 @@ else:
     assert False, f"Unknown application: {application}"
 
 checkpoint_name = f"{application}-{graph_name}-mesh_{mesh}"
+if with_cxl_mem:
+    checkpoint_name += "-cxl_mem"
 checkpoint_path = Path(f"/workdir/ARTIFACTS/checkpoints/{checkpoint_name}")
 board.set_kernel_disk_workload(
     kernel=CustomResource("/workdir/ARTIFACTS/vmlinux-6.6.71"),
