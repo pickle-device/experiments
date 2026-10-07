@@ -39,6 +39,7 @@ from m5.objects import (
     PickleDeviceRequestManager,
     PicklePrefetcher,
     TAGE_SC_L_64KB,
+    CompressionType,
 )
 
 from m5.objects import (
@@ -64,9 +65,9 @@ with_cxl_mem = args.with_cxl_mem == "True"
 # setOutputDir(f"/workdir/ARTIFACTS/results/bfs-pickle-{graph_name}-distance-32")
 
 if mesh == 8:
-    mesh_descriptor = PrebuiltMesh.getMesh8("Mesh8")
+    mesh_descriptor = PrebuiltMesh.getMesh8("Mesh8", has_memory_over_cxl=with_cxl_mem)
 elif mesh == 10:
-    mesh_descriptor = PrebuiltMesh.getMesh10("Mesh10")
+    mesh_descriptor = PrebuiltMesh.getMesh10("Mesh10", has_memory_over_cxl=with_cxl_mem)
 else:
     assert False, f"Unsupported mesh: {mesh}"
 num_cores = mesh_descriptor.get_num_core_tiles()
@@ -98,6 +99,7 @@ mesh_cache = MeshCacheWithPickleDevice(
     mesh_descriptor=mesh_descriptor,
     data_prefetcher_class=None,
     pdev_num_tbes=16,
+    pci_link_latency_in_cycles=200,
 )
 
 # Main memory
@@ -232,6 +234,8 @@ board = PickleArmBoard(
     release=ArmDefaultRelease.for_kvm(),
     platform=VExpress_GEM5_V1(),
 )
+board.compression_type = CompressionType("ZSTD")
+board.checkpoint_mem_checksum = True
 
 graph_path_map = {
     "amazon": (
