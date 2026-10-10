@@ -51,6 +51,7 @@ from m5.objects import (
     ArmDefaultRelease,
     ArmISA,
     VExpress_GEM5_V1,
+    VExpress_GEM5_V2,
     VExpress_GEM5_Foundation,
 )
 
@@ -59,6 +60,12 @@ prefetch_mode_map = {
     "single": 1,
     "bulk": 2,
 }
+
+VALID_LOCAL_CXL_ALLOCATION_RATIOS = {"1:1", "2:1", "3:1"}
+
+local_memory_size = "4GiB"
+cxl_memory_size = "4GiB"
+cxl_memory_channels = 2
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--application", type=str, required=True, choices={"bc", "bfs", "cc", "pr", "sssp", "tc", "spmv", "is", "cg", "ua"})
@@ -83,7 +90,11 @@ parser.add_argument(
     choices=["none", "stride", "dmp", "dmp_with_page_walk", "imp", "ampm", "sms", "bop", "multiv1"],
 )
 
-# optional
+# CXL optional parameters
+parser.add_argument("--cxl_link_latency_in_cycles", type=int, required=False, default=200)
+parser.add_argument("--local_cxl_allocation_ratio", type=str, required=False, default="invalid")
+
+# PICKLE optional parameters
 parser.add_argument("--sssp_threshold_optimization_enabled", type=str, required=False, default="True", choices={"True", "False"})
 parser.add_argument("--bc_depth_optimization_enabled", type=str, required=False, default="False", choices={"True", "False"})
 parser.add_argument("--bc_depth_prefetch_to_both_llc_and_pickle_enabled", type=str, required=False, default="False", choices={"True", "False"})
@@ -101,6 +112,19 @@ args = parser.parse_args()
 application = args.application
 graph_name = args.graph_name
 with_cxl_mem = args.with_cxl_mem == "True"
+cxl_link_latency_in_cycles = args.cxl_link_latency_in_cycles
+local_cxl_allocation_ratio = args.local_cxl_allocation_ratio
+# parse the allocation ratio
+if with_cxl_mem:
+    if local_cxl_allocation_ratio not in VALID_LOCAL_CXL_ALLOCATION_RATIOS:
+        assert False, f"When with_cxl_mem is True, local_cxl_allocation_ratio must be in {VALID_LOCAL_CXL_ALLOCATION_RATIOS}, but got '{local_cxl_allocation_ratio}'"
+    else:
+        local_allocation_weight, cxl_allocation_weight = local_cxl_allocation_ratio.split(":")
+        local_allocation_weight = int(local_allocation_weight)
+        cxl_allocation_weight = int(cxl_allocation_weight)
+else:
+    local_allocation_weight = None
+    cxl_allocation_weight = None
 enable_pdev = args.enable_pdev == "True"
 pickle_cache_size = args.pickle_cache_size
 prefetch_distance = args.prefetch_distance
@@ -131,6 +155,7 @@ prefetch_scheduling_policy = {
 mesh = args.mesh
 
 print(f"Mesh: PrebuiltMesh{mesh}")
+print(f"CXL memory: {with_cxl_mem}, CXL link latency in cycles: {cxl_link_latency_in_cycles}, Local:CXL allocation ratio: {local_allocation_weight}:{cxl_allocation_weight}")
 print(f"Application: {application}")
 print(f"Graph name: {graph_name}")
 print(f"Private Cache Prefetcher: {private_cache_prefetcher}, Enable core MMU page walk for prefetches: {enable_core_mmu_ptw_for_prefetches}")
@@ -154,16 +179,6 @@ else:
 num_cores = mesh_descriptor.get_num_core_tiles()
 
 fast_forward_cpu_type = CPUTypes.KVM
-
-special_memory_requirement = {
-    ("spmv", "nlpkkt200"): "8GiB",
-    ("spmv", "nlpkkt240"): "16GiB",
-}
-def choose_memory_size(application, graph_name):
-    if (application, graph_name) in special_memory_requirement:
-        return special_memory_requirement[(application, graph_name)]
-    return "4GiB"
-memory_size = choose_memory_size(application, graph_name)
 
 def getNumPrefetchGeneratorsForApplication(application):
     return {
@@ -195,7 +210,7 @@ mesh_cache = MeshCacheWithPickleDevice(
     mesh_descriptor=mesh_descriptor,
     data_prefetcher_class=private_cache_prefetcher,
     pdev_num_tbes=pdev_num_tbes,
-    pci_link_latency_in_cycles=200,
+    pci_link_latency_in_cycles=cxl_link_latency_in_cycles,
 )
 
 # Main memory
@@ -208,15 +223,15 @@ local_memory = ChanneledMemory(
     dram_interface_class=dram_class,
     num_channels=mesh_descriptor.get_num_mem_tiles(),
     interleaving_size=64,
-    size=memory_size,
+    size=local_memory_size,
 )
 # CXL Expander
 if with_cxl_mem:
     cxl_memory = ChanneledMemory(
         dram_interface_class=DDR4_2400_8x8,
-        num_channels=2,
+        num_channels=cxl_memory_channels,
         interleaving_size=64,
-        size="2GiB",
+        size=cxl_memory_size,
     )
 else:
     cxl_memory = None
@@ -257,6 +272,8 @@ class PickleArmBoard(ArmBoard):
             "rw",
             f"mem={total_memory_size}",
             "init=/home/ubuntu/gem5-init.sh",
+            "earlycon=pl011,0x1c090000",
+            "loglevel=8",
         ]
 
     @overrides(ArmBoard)
@@ -417,6 +434,11 @@ class PickleArmBoard(ArmBoard):
     @overrides(ArmBoard)
     def _post_instantiate(self):
         super()._post_instantiate()
+        for mem_ctrl in self.memory.mem_ctrl:
+            mem_ctrl.disableActiveDataTracker()
+        if self._has_cxl_memory:
+            for mem_ctrl in self.memory_over_cxl.mem_ctrl:
+                mem_ctrl.disableActiveDataTracker()
         self.cache_hierarchy.post_instantiate()
 
 
@@ -427,7 +449,7 @@ board = PickleArmBoard(
     memory_over_cxl=cxl_memory,
     cache_hierarchy=mesh_cache,
     release=ArmDefaultRelease.for_kvm(),
-    platform=VExpress_GEM5_V1(),
+    platform=VExpress_GEM5_V2(),
 )
 
 graph_path_map = {
@@ -502,15 +524,13 @@ graph_path_map = {
     "test15": ("/home/ubuntu/graphs/synth_15.el", "undirected", None),
 }
 
-matrix_path_map = {
-    "steam1": "/home/ubuntu/mm/steam1/steam1.csr",
-    "nlpkkt200": "/home/ubuntu/mm/nlpkkt200/nlpkkt200.csr",
-    "consph": "/home/ubuntu/mm/consph/consph.csr",
-    "roadnet": "/home/ubuntu/mm/USA-road-d.USA.csr",
-    "Ga41As41H72": "/home/ubuntu/mm/Ga41As41H72/Ga41As41H72.csr",
-}
-
-command_prefix = ""
+if with_cxl_mem:
+    command_prefix = f"""
+    echo {local_allocation_weight} > /sys/kernel/mm/mempolicy/weighted_interleave/node0;
+    echo {cxl_allocation_weight} > /sys/kernel/mm/mempolicy/weighted_interleave/node1;
+    /home/ubuntu/numactl/numactl --weighted-interleave=0,1 """
+else:
+    command_prefix = ""
 
 if application in {"bc", "bfs", "cc", "pr", "sssp", "tc"}:
     graph_path, direction, starting_node = graph_path_map[graph_name]
@@ -527,22 +547,16 @@ if application in {"bc", "bfs", "cc", "pr", "sssp", "tc"}:
             symmetric_flag = "-s"
             #assert False, f"tc requires the input graph to be undirected"
     command = f"{command_prefix} /home/ubuntu/gapbs/{application}2.hw.pdev.m5 -n 2 -f {graph_path} {symmetric_flag} {starting_node_flag}"
-elif application in {"spmv"}:
-    graph_path = matrix_path_map[graph_name]
-    command = f"{command_prefix} /home/ubuntu/benchmarks/spmv/spmv.hw.pdev.m5 {graph_path}"
-elif application in {"is", "cg", "ua"}:
-    workload_class = graph_name
-    command = f"{command_prefix} /home/ubuntu/NPB/NPB3.4-OMP/bin/{application}.{workload_class}.x.m5.pdev"
 else:
     assert False, f"Unknown application: {application}"
 
 checkpoint_name = f"{application}-{graph_name}-mesh_{mesh}"
 if with_cxl_mem:
-    checkpoint_name += "-cxl_mem"
+    checkpoint_name += f"-cxl_mem-allocation_ratio_{local_allocation_weight}_{cxl_allocation_weight}-cxl_link_latency_{cxl_link_latency_in_cycles}"
 checkpoint_path = Path(f"/workdir/ARTIFACTS/checkpoints/{checkpoint_name}")
 board.set_kernel_disk_workload(
-    kernel=CustomResource("/workdir/ARTIFACTS/vmlinux-6.6.71"),
-    disk_image=CustomDiskImageResource("/workdir/ARTIFACTS/arm64.img.v10"),
+    kernel=CustomResource("/workdir/ARTIFACTS/vmlinux-6.18.55"),
+    disk_image=CustomDiskImageResource("/workdir/ARTIFACTS/arm64.img.v15"),
     #bootloader=obtain_resource("arm64-bootloader", resource_version="1.0.0"),
     bootloader=CustomResource("/workdir/.cache/gem5/arm64-bootloader"),
     checkpoint=checkpoint_path,
@@ -566,6 +580,12 @@ def handle_exit_with_pdev():
 
     print("[exit 3] ITER 2: *** ROI start ***")
     m5.stats.dump()
+    # Start tracking active memory
+    for mem_ctrl in board.memory.mem_ctrl:
+        mem_ctrl.enableActiveDataTracker()
+    if with_cxl_mem:
+        for mem_ctrl in board.memory_over_cxl.mem_ctrl:
+            mem_ctrl.enableActiveDataTracker()
     yield False
 
     print("[exit 4] ITER 2: *** ROI end ***")
@@ -582,6 +602,12 @@ def handle_exit_without_pdev():
 
     print("[exit 3] ITER 2: *** ROI start ***")
     m5.stats.dump()
+    # Start tracking active memory
+    for mem_ctrl in board.memory.mem_ctrl:
+        mem_ctrl.enableActiveDataTracker()
+    if with_cxl_mem:
+        for mem_ctrl in board.memory_over_cxl.mem_ctrl:
+            mem_ctrl.enableActiveDataTracker()
     yield False
 
     print("[exit 4] ITER 2: *** ROI end ***")
