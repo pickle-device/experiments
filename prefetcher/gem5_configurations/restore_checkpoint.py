@@ -449,7 +449,7 @@ board = PickleArmBoard(
     memory_over_cxl=cxl_memory,
     cache_hierarchy=mesh_cache,
     release=ArmDefaultRelease.for_kvm(),
-    platform=VExpress_GEM5_V2(),
+    platform=VExpress_GEM5_V1(),
 )
 
 graph_path_map = {
@@ -555,7 +555,7 @@ if with_cxl_mem:
     checkpoint_name += f"-cxl_mem-allocation_ratio_{local_allocation_weight}_{cxl_allocation_weight}-cxl_link_latency_{cxl_link_latency_in_cycles}"
 checkpoint_path = Path(f"/workdir/ARTIFACTS/checkpoints/{checkpoint_name}")
 board.set_kernel_disk_workload(
-    kernel=CustomResource("/workdir/ARTIFACTS/vmlinux-6.18.55"),
+    kernel=CustomResource("/workdir/ARTIFACTS/vmlinux-6.12.112"),
     disk_image=CustomDiskImageResource("/workdir/ARTIFACTS/arm64.img.v15"),
     #bootloader=obtain_resource("arm64-bootloader", resource_version="1.0.0"),
     bootloader=CustomResource("/workdir/.cache/gem5/arm64-bootloader"),

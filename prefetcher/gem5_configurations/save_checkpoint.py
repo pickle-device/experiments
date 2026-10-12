@@ -172,8 +172,8 @@ class PickleArmBoard(ArmBoard):
             "rw",
             f"mem={total_memory_size}",
             "init=/home/ubuntu/gem5-init.sh",
-            "earlycon=pl011,0x1c090000",
-            "loglevel=8",
+            #"earlycon=pl011,0x1c090000",
+            #"loglevel=8",
         ]
 
     @overrides(ArmBoard)
@@ -253,7 +253,7 @@ board = PickleArmBoard(
     memory_over_cxl=cxl_memory,
     cache_hierarchy=mesh_cache,
     release=ArmDefaultRelease.for_kvm(),
-    platform=VExpress_GEM5_V2(),
+    platform=VExpress_GEM5_V1(),
 )
 board.compression_type = CompressionType("ZSTD")
 board.checkpoint_mem_checksum = True
@@ -357,7 +357,7 @@ else:
     assert False, f"Unknown application: {application}"
 
 board.set_kernel_disk_workload(
-    kernel=CustomResource("/workdir/ARTIFACTS/linux-6.18.55/vmlinux"),
+    kernel=CustomResource("/workdir/ARTIFACTS/linux-6.12.112/vmlinux"),
     disk_image=CustomDiskImageResource("/workdir/ARTIFACTS/arm64.img.v15"),
     #bootloader=obtain_resource("arm64-bootloader", resource_version="1.0.0"),
     bootloader=CustomResource("/workdir/.cache/gem5/arm64-bootloader"),
