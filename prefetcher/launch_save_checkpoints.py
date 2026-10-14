@@ -37,9 +37,7 @@ MESHES = ["8"]
 GRAPH_NAMES = ["test5", "as_skitter", "livejournal", "orkut", "pokec", "roadNetCA", "web_berkstan", "web_google", "wiki_talk", "youtube"]
 OUTPUT_FOLDER = "/workdir/ARTIFACTS/results_v8/"
 WITH_CXL = ["True", "False"]
-CXL_LINK_LATENCY = ["200"]
-#LOCAL_CXL_ALLOCATION_RATIO = ["1:1", "2:1", "3:1"]
-LOCAL_CXL_ALLOCATION_RATIO = ["2:1"]
+LOCAL_CXL_ALLOCATION_RATIO = ["1:1", "2:1", "3:1", "1:2"]
 
 #WITH_CXL = ["False"]
 
@@ -67,7 +65,6 @@ def build_jobs():
                             "--graph_name", graph_name,
                             "--mesh", mesh,
                             "--with_cxl_mem", with_cxl_mem,
-                            "--cxl_link_latency_in_cycles", "1",
                             "--local_cxl_allocation_ratio", "invalid",
                         ]
                         label = (
@@ -75,12 +72,11 @@ def build_jobs():
                         )
                         jobs.append((label, cmd))
                     else:
-                        for cxl_link_latency in CXL_LINK_LATENCY:
-                            for local_cxl_allocation_ratio in LOCAL_CXL_ALLOCATION_RATIO:
-                                outdir = os.path.join(
-                                    OUTPUT_FOLDER,
-                                    f"{application}-{graph_name}-mesh_{mesh}-cxl_{with_cxl_mem}-cxl_link_latency_{cxl_link_latency}-local_cxl_allocation_ratio_{local_cxl_allocation_ratio}-checkpoint",
-                                )
+                        for local_cxl_allocation_ratio in LOCAL_CXL_ALLOCATION_RATIO:
+                            outdir = os.path.join(
+                                OUTPUT_FOLDER,
+                                f"{application}-{graph_name}-mesh_{mesh}-cxl_{with_cxl_mem}-local_cxl_allocation_ratio_{local_cxl_allocation_ratio}-checkpoint",
+                            )
                                 cmd = [
                                     GEM5_BINARY, "-re",
                                     "--outdir", outdir,
@@ -89,11 +85,10 @@ def build_jobs():
                                     "--graph_name", graph_name,
                                     "--mesh", mesh,
                                     "--with_cxl_mem", with_cxl_mem,
-                                    "--cxl_link_latency_in_cycles", cxl_link_latency,
                                     "--local_cxl_allocation_ratio", local_cxl_allocation_ratio,
                                 ]
                                 label = (
-                                    f"{application}-{graph_name}-mesh_{mesh}-cxl_{with_cxl_mem}-{cxl_link_latency}-{local_cxl_allocation_ratio}-checkpoint"
+                                    f"{application}-{graph_name}-mesh_{mesh}-cxl_{with_cxl_mem}-{local_cxl_allocation_ratio}-checkpoint"
                                 )
                                 jobs.append((label, cmd))
     return jobs

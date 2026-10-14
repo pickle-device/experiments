@@ -60,7 +60,6 @@ parser.add_argument("--mesh", type=int, required=True, choices={8, 10})
 parser.add_argument("--with_cxl_mem", type=str, required=True, choices={"True", "False"})
 
 # CXL only arguments
-parser.add_argument("--cxl_link_latency_in_cycles", type=int, required=False, default=200)
 parser.add_argument("--local_cxl_allocation_ratio", type=str, required=False, default="invalid")
 
 args = parser.parse_args()
@@ -69,7 +68,6 @@ application = args.application
 graph_name = args.graph_name
 mesh = args.mesh
 with_cxl_mem = args.with_cxl_mem == "True"
-cxl_link_latency_in_cycles = args.cxl_link_latency_in_cycles
 local_cxl_allocation_ratio = args.local_cxl_allocation_ratio
 # parse the allocation ratio
 if with_cxl_mem:
@@ -113,7 +111,7 @@ mesh_cache = MeshCacheWithPickleDevice(
     mesh_descriptor=mesh_descriptor,
     data_prefetcher_class=None,
     pdev_num_tbes=16,
-    pci_link_latency_in_cycles=cxl_link_latency_in_cycles,
+    pci_link_latency_in_cycles=200,
 )
 
 # Main memory
@@ -405,7 +403,7 @@ simulator.run()
 checkpoint_name = f"{application}-{graph_name}"
 checkpoint_name += f"-mesh_{mesh}"
 if with_cxl_mem:
-    checkpoint_name += f"-cxl_mem-allocation_ratio_{local_allocation_weight}_{cxl_allocation_weight}-cxl_link_latency_{cxl_link_latency_in_cycles}"
+    checkpoint_name += f"-cxl_mem-allocation_ratio_{local_allocation_weight}_{cxl_allocation_weight}"
 simulator.save_checkpoint(Path(f"/workdir/ARTIFACTS/checkpoints/{checkpoint_name}"))
 
 print(f"Ran a total of {simulator.get_current_tick() / 1e12} simulated seconds")
