@@ -51,7 +51,7 @@ from m5.objects import (
     VExpress_GEM5_Foundation,
 )
 
-VALID_LOCAL_CXL_ALLOCATION_RATIOS = {"1:1", "2:1", "3:1"}
+VALID_LOCAL_CXL_ALLOCATION_RATIOS = {"1:1", "2:1", "3:1", "1:2"}
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--application", type=str, required=True, choices={"bc", "bfs", "cc", "pr", "tc", "sssp"})

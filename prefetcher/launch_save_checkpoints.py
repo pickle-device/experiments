@@ -77,20 +77,20 @@ def build_jobs():
                                 OUTPUT_FOLDER,
                                 f"{application}-{graph_name}-mesh_{mesh}-cxl_{with_cxl_mem}-local_cxl_allocation_ratio_{local_cxl_allocation_ratio}-checkpoint",
                             )
-                                cmd = [
-                                    GEM5_BINARY, "-re",
-                                    "--outdir", outdir,
-                                    CONFIG_SCRIPT,
-                                    "--application", application,
-                                    "--graph_name", graph_name,
-                                    "--mesh", mesh,
-                                    "--with_cxl_mem", with_cxl_mem,
-                                    "--local_cxl_allocation_ratio", local_cxl_allocation_ratio,
-                                ]
-                                label = (
-                                    f"{application}-{graph_name}-mesh_{mesh}-cxl_{with_cxl_mem}-{local_cxl_allocation_ratio}-checkpoint"
-                                )
-                                jobs.append((label, cmd))
+                            cmd = [
+                                GEM5_BINARY, "-re",
+                                "--outdir", outdir,
+                                CONFIG_SCRIPT,
+                                "--application", application,
+                                "--graph_name", graph_name,
+                                "--mesh", mesh,
+                                "--with_cxl_mem", with_cxl_mem,
+                                "--local_cxl_allocation_ratio", local_cxl_allocation_ratio,
+                            ]
+                            label = (
+                                f"{application}-{graph_name}-mesh_{mesh}-cxl_{with_cxl_mem}-{local_cxl_allocation_ratio}-checkpoint"
+                            )
+                            jobs.append((label, cmd))
     return jobs
 
 
