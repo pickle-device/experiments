@@ -306,6 +306,9 @@ class PickleArmBoard(ArmBoard):
         num_generators = getNumPrefetchGeneratorsForApplication(application)
         self.pickle_device_prefetchers = [
             PicklePrefetcher(
+                cxl_memory_awareness_enabled=True,
+                local_memory_physical_address_ranges=[],
+                cxl_memory_physical_address_ranges=[],
                 software_hint_prefetch_distance=prefetch_distance,
                 prefetch_distance_offset_from_software_hint=offset_from_pf_hint,
                 prefetch_mode=prefetch_mode,
@@ -361,6 +364,29 @@ class PickleArmBoard(ArmBoard):
             for core in all_cores:
                 core.mmu.enable_page_walk_on_prefetch_request_tlb_miss = True
         super()._pre_instantiate()
+        # assign the local/cxl memory physical address ranges to MMU walkers
+        local_ranges = [
+            address_range
+            for address_range, mem_port in self.get_mem_ports()
+        ]
+        cxl_ranges = [
+            address_range
+            for address_range, mem_port in self.get_memory_over_cxl_ports()
+        ]
+        for core in all_cores:
+            core.mmu.itb_walker.local_memory_physical_address_ranges = local_ranges
+            core.mmu.itb_walker.cxl_memory_physical_address_ranges = cxl_ranges
+            core.mmu.dtb_walker.local_memory_physical_address_ranges = local_ranges
+            core.mmu.dtb_walker.cxl_memory_physical_address_ranges = cxl_ranges
+        for pickle_mmu in self.pickle_device_mmus:
+            pickle_mmu.itb_walker.local_memory_physical_address_ranges = local_ranges
+            pickle_mmu.itb_walker.cxl_memory_physical_address_ranges = cxl_ranges
+            pickle_mmu.dtb_walker.local_memory_physical_address_ranges = local_ranges
+            pickle_mmu.dtb_walker.cxl_memory_physical_address_ranges = cxl_ranges
+        # assign the local/cxl memory physical address ranges to Pickle
+        for pickle_prefetcher in self.pickle_device_prefetchers:
+            pickle_prefetcher.local_memory_physical_address_ranges = local_ranges
+            pickle_prefetcher.cxl_memory_physical_address_ranges = cxl_ranges
         for agent in self.cache_hierarchy.llc_prefetch_agents:
             agent.timeout_cycles = llc_delegation_timeout
         if application in tracking_pc:
@@ -552,7 +578,7 @@ else:
 
 checkpoint_name = f"{application}-{graph_name}-mesh_{mesh}"
 if with_cxl_mem:
-    checkpoint_name += f"-cxl_mem-allocation_ratio_{local_allocation_weight}_{cxl_allocation_weight}-cxl_link_latency_{cxl_link_latency_in_cycles}"
+    checkpoint_name += f"-cxl_mem-allocation_ratio_{local_allocation_weight}_{cxl_allocation_weight}"
 checkpoint_path = Path(f"/workdir/ARTIFACTS/checkpoints/{checkpoint_name}")
 board.set_kernel_disk_workload(
     kernel=CustomResource("/workdir/ARTIFACTS/vmlinux-6.12.112"),
