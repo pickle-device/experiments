@@ -199,6 +199,7 @@ class PickleArmBoard(ArmBoard):
         ]
         self.pickle_device_prefetchers = [
             PicklePrefetcher(
+                cxl_memory_awareness_enabled=False,
                 software_hint_prefetch_distance=1,
                 prefetch_distance_offset_from_software_hint=0,
                 num_cores=len(all_cores),
