@@ -61,11 +61,10 @@ prefetch_mode_map = {
     "bulk": 2,
 }
 
-VALID_LOCAL_CXL_ALLOCATION_RATIOS = {"1:1", "2:1", "3:1"}
+VALID_LOCAL_CXL_ALLOCATION_RATIOS = {"1:1", "2:1", "3:1", "1:2"}
 
 local_memory_size = "4GiB"
 cxl_memory_size = "4GiB"
-cxl_memory_channels = 2
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--application", type=str, required=True, choices={"bc", "bfs", "cc", "pr", "sssp", "tc", "spmv", "is", "cg", "ua"})
@@ -92,6 +91,7 @@ parser.add_argument(
 
 # CXL optional parameters
 parser.add_argument("--cxl_link_latency_in_cycles", type=int, required=False, default=200)
+parser.add_argument("--cxl_memory_channels", type=int, required=False, choices={1,2,4,8}, default=2, help="Number of channels in the CXL memory. This is only used when with_cxl_mem is True.")
 parser.add_argument("--local_cxl_allocation_ratio", type=str, required=False, default="invalid")
 
 # PICKLE optional parameters
@@ -113,6 +113,7 @@ application = args.application
 graph_name = args.graph_name
 with_cxl_mem = args.with_cxl_mem == "True"
 cxl_link_latency_in_cycles = args.cxl_link_latency_in_cycles
+cxl_memory_channels = args.cxl_memory_channels
 local_cxl_allocation_ratio = args.local_cxl_allocation_ratio
 # parse the allocation ratio
 if with_cxl_mem:
