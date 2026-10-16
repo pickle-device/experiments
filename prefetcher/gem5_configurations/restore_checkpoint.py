@@ -51,8 +51,6 @@ from m5.objects import (
     ArmDefaultRelease,
     ArmISA,
     VExpress_GEM5_V1,
-    VExpress_GEM5_V2,
-    VExpress_GEM5_Foundation,
 )
 
 
@@ -98,6 +96,7 @@ parser.add_argument("--local_cxl_allocation_ratio", type=str, required=False, de
 parser.add_argument("--sssp_threshold_optimization_enabled", type=str, required=False, default="True", choices={"True", "False"})
 parser.add_argument("--bc_depth_optimization_enabled", type=str, required=False, default="False", choices={"True", "False"})
 parser.add_argument("--bc_depth_prefetch_to_both_llc_and_pickle_enabled", type=str, required=False, default="False", choices={"True", "False"})
+parser.add_argument("--ua_cbc_optimization_enabled", type=str, required=False, default="True", choices={"True", "False"})
 parser.add_argument("--functional_pickle_mmu", type=str, required=False, default="False", choices={"True", "False"})
 parser.add_argument("--llc_size", type=str, required=False, default="32MiB", choices={"16MiB", "32MiB", "64MiB"})
 parser.add_argument("--ddr_technology", type=str, required=False, default="DDR5@8400", choices={"DDR3@1600", "DDR4@2400", "DDR5@8400"})
@@ -146,6 +145,7 @@ llc_delegation_timeout = args.llc_delegation_timeout
 sssp_threshold_optimization_enabled = args.sssp_threshold_optimization_enabled == "True"
 bc_depth_optimization_enabled = args.bc_depth_optimization_enabled == "True"
 bc_depth_prefetch_to_both_llc_and_pickle_enabled = args.bc_depth_prefetch_to_both_llc_and_pickle_enabled == "True"
+ua_cbc_optimization_enabled = args.ua_cbc_optimization_enabled == "True"
 functional_pickle_mmu = args.functional_pickle_mmu == "True"
 llc_size = args.llc_size
 ddr_technology = args.ddr_technology
@@ -189,10 +189,6 @@ def getNumPrefetchGeneratorsForApplication(application):
         "pr": 1,
         "sssp": 3,
         "tc": 1,
-        "spmv": 1,
-        "is": 1,
-        "cg": 2,
-        "ua": 2,
     }[application]
 
 mesh_cache = MeshCacheWithPickleDevice(
@@ -323,6 +319,7 @@ class PickleArmBoard(ArmBoard):
                 prefetch_scheduling_policy=prefetch_scheduling_policy,
                 sssp_threshold_optimization_enabled=sssp_threshold_optimization_enabled,
                 bc_depth_optimization_enabled=bc_depth_optimization_enabled,
+                ua_cbc_optimization_enabled=ua_cbc_optimization_enabled,
                 #bc_depth_prefetch_to_both_llc_and_pickle_enabled=bc_depth_prefetch_to_both_llc_and_pickle_enabled,
             )
             for i in range(num_PD_tiles)
@@ -370,10 +367,13 @@ class PickleArmBoard(ArmBoard):
             address_range
             for address_range, mem_port in self.get_mem_ports()
         ]
-        cxl_ranges = [
-            address_range
-            for address_range, mem_port in self.get_memory_over_cxl_ports()
-        ]
+        if self.has_memory_over_cxl():
+            cxl_ranges = [
+                address_range
+                for address_range, mem_port in self.get_memory_over_cxl_ports()
+            ]
+        else:
+            cxl_ranges = []
         for core in all_cores:
             core.mmu.itb_walker.local_memory_physical_address_ranges = local_ranges
             core.mmu.itb_walker.cxl_memory_physical_address_ranges = cxl_ranges
