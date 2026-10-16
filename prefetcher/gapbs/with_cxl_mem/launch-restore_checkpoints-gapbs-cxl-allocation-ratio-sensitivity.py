@@ -42,7 +42,7 @@ PREFETCH_MODE="single"
 BULK_PREFETCH_CHUNK_SIZE=1
 BULK_PREFETCH_NUM_PREFETCHES_PER_HINT=1
 
-PRIVATE_CACHE_PREFETCHERS = ["stride", "dmp_with_page_walk"]
+PRIVATE_CACHE_PREFETCHERS = ["none", "stride", "dmp_with_page_walk"]
 
 GEM5_BINARY = "/workdir/gem5/build/ARM/gem5.opt"
 CONFIG_SCRIPT = (
@@ -59,11 +59,15 @@ def build_jobs():
         for graph_name in GRAPH_NAMES:
             for local_cxl_allocation_ratio in LOCAL_CXL_ALLOCATION_RATIO:
                 local_weight, cxl_weight = local_cxl_allocation_ratio.split(":")
-                # PRIVATE CACHE PREFETCHERS
+                # BASELINE / PRIVATE CACHE PREFETCHERS
                 for private_cache_prefetcher in PRIVATE_CACHE_PREFETCHERS:
+                    if private_cache_prefetcher == "none":
+                        prefetcher_name = "baseline"
+                    else:
+                        prefetcher_name = f"prefetcher_{private_cache_prefetcher}"
                     outdir = os.path.join(
                         OUTPUT_FOLDER,
-                        f"{application}-{graph_name}-mesh_{mesh}-prefetcher_{private_cache_prefetcher}-cxl_{with_cxl_mem}-cxl_link_latency_{cxl_link_latency}-local_cxl_allocation_ratio_{local_weight}_{cxl_weight}",
+                        f"{application}-{graph_name}-mesh_{mesh}-{prefetcher_name}-cxl_{with_cxl_mem}-cxl_link_latency_{cxl_link_latency}-local_cxl_allocation_ratio_{local_weight}_{cxl_weight}",
                     )
                     cmd = [
                         GEM5_BINARY, "-re",
@@ -90,7 +94,7 @@ def build_jobs():
                         "--local_cxl_allocation_ratio", local_cxl_allocation_ratio
                     ]
                     label = (
-                        f"{application}-{graph_name}-mesh_{mesh}-cxl_{with_cxl_mem}-prefetcher_{private_cache_prefetcher}"
+                        f"{application}-{graph_name}-mesh_{mesh}-prefetcher_{private_cache_prefetcher}-cxl_{with_cxl_mem}-cxl_link_latency_{cxl_link_latency}-local_cxl_allocation_ratio_{local_weight}_{cxl_weight}"
                     )
                     jobs.append((label, cmd))
                 # PICKLE
