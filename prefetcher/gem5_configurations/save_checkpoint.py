@@ -47,8 +47,6 @@ from m5.objects import (
     ArmDefaultRelease,
     ArmISA,
     VExpress_GEM5_V1,
-    VExpress_GEM5_V2,
-    VExpress_GEM5_Foundation,
 )
 
 VALID_LOCAL_CXL_ALLOCATION_RATIOS = {"1:1", "2:1", "3:1", "1:2"}
@@ -93,7 +91,11 @@ fast_forward_cpu_type = CPUTypes.KVM
 
 local_memory_size = "4GiB"
 cxl_memory_size = "4GiB"
-cxl_memory_channels = 2
+cxl_memory_channels = 1 # so we can increase the number of channels later on
+                        # i.e., if we save checkpoint with 2 channels and
+                        # restore with 1 channel, we have a problem where
+                        # gem5 creates a new mem_ctrl for that 1 channel when
+                        # restoring, while the other 2 old channels are not used
 
 mesh_cache = MeshCacheWithPickleDevice(
     l1i_size="32KiB",
