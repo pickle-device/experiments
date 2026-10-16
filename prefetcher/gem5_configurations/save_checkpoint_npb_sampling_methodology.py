@@ -48,13 +48,16 @@ from m5.objects import (
     ArmDefaultRelease,
     ArmISA,
     VExpress_GEM5_V1,
-    VExpress_GEM5_Foundation,
 )
+
+VALID_LOCAL_CXL_ALLOCATION_RATIOS = {"1:1", "2:1", "3:1", "1:2"}
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--application", type=str, required=True, choices={"cg", "is", "ua"})
 parser.add_argument("--workload_class", type=str, required=True)
 parser.add_argument("--mesh", type=int, required=True, choices={8, 10})
+parser.add_argument("--with_cxl_mem", type=str, required=True, choices={"True", "False"})
+parser.add_argument("--local_cxl_allocation_ratio", type=str, required=False, default="invalid")
 parser.add_argument("--sampling_site", type=int, required=True)
 parser.add_argument("--sampling_point", type=int, required=True)
 args = parser.parse_args()
@@ -62,6 +65,20 @@ args = parser.parse_args()
 application = args.application
 workload_class = args.workload_class
 mesh = args.mesh
+with_cxl_mem = args.with_cxl_mem == "True"
+local_cxl_allocation_ratio = args.local_cxl_allocation_ratio
+# parse the allocation ratio
+if with_cxl_mem:
+    if local_cxl_allocation_ratio not in VALID_LOCAL_CXL_ALLOCATION_RATIOS:
+        assert False, f"When with_cxl_mem is True, local_cxl_allocation_ratio must be in {VALID_LOCAL_CXL_ALLOCATION_RATIOS}, but got '{local_cxl_allocation_ratio}'"
+    else:
+        local_allocation_weight, cxl_allocation_weight = local_cxl_allocation_ratio.split(":")
+        local_allocation_weight = int(local_allocation_weight)
+        cxl_allocation_weight = int(cxl_allocation_weight)
+else:
+    local_allocation_weight = None
+    cxl_allocation_weight = None
+
 sampling_site = args.sampling_site
 sampling_point = args.sampling_point
 
@@ -144,22 +161,35 @@ else:
     assert False, f"Unsupported application: {application}"
 
 if mesh == 8:
-    mesh_descriptor = PrebuiltMesh.getMesh8("Mesh8")
+    mesh_descriptor = PrebuiltMesh.getMesh8("Mesh8", has_memory_over_cxl=with_cxl_mem)
+elif mesh == 10:
+    mesh_descriptor = PrebuiltMesh.getMesh10("Mesh10", has_memory_over_cxl=with_cxl_mem)
 else:
     assert False, f"Unsupported mesh: {mesh}"
 num_cores = mesh_descriptor.get_num_core_tiles()
 
 fast_forward_cpu_type = CPUTypes.KVM
 
-special_memory_requirement = {
-    ("cg", "E"): "192GiB",
-    ("is", "D"): "48GiB",
-    ("ua", "D"): "16GiB",
-}
-def choose_memory_size(application, workload_class):
-    if (application, workload_class) in special_memory_requirement:
-        return special_memory_requirement[(application, workload_class)]
-    return "4GiB"
+local_memory_size = "4GiB"
+cxl_memory_size = "4GiB"
+
+if not with_cxl_mem:
+    if application == "cg" and workload_class == "E":
+        local_memory_size = "192GiB"
+    elif application == "is" and workload_class == "D":
+        local_memory_size = "48GiB"
+    elif application == "ua" and workload_class == "D":
+        local_memory_size = "16GiB"
+else:
+    if application == "cg" and workload_class == "E":
+        local_memory_size = "128GiB"
+        cxl_memory_size = "64GiB"
+    elif application == "is" and workload_class == "D":
+        local_memory_size = "32GiB"
+        cxl_memory_size = "16GiB"
+    elif application == "ua" and workload_class == "D":
+        local_memory_size = "16GiB"
+        cxl_memory_size = "8GiB"
 
 mesh_cache = MeshCacheWithPickleDevice(
     l1i_size="32KiB",
@@ -177,15 +207,27 @@ mesh_cache = MeshCacheWithPickleDevice(
     mesh_descriptor=mesh_descriptor,
     data_prefetcher_class=None,
     pdev_num_tbes=64,
+    pci_link_latency_in_cycles=200,
 )
 
 # Main memory
-memory = ChanneledMemory(
+local_memory = ChanneledMemory(
     dram_interface_class=DDR5_8400_4x8,
     num_channels=mesh_descriptor.get_num_mem_tiles(),
     interleaving_size=64,
-    size=choose_memory_size(application, workload_class),
+    size=local_memory_size,
 )
+
+# CXL Expander
+if with_cxl_mem:
+    cxl_memory = ChanneledMemory(
+        dram_interface_class=DDR4_2400_8x8,
+        num_channels=1,
+        interleaving_size=64,
+        size=cxl_memory_size,
+    )
+else:
+    cxl_memory = None
 
 processor = SimpleProcessor(cpu_type=CPUTypes.KVM, isa=ISA.ARM, num_cores=num_cores)
 
@@ -196,18 +238,24 @@ if fast_forward_cpu_type == CPUTypes.KVM:
 
 
 class PickleArmBoard(ArmBoard):
-    def __init__(self, clk_freq, processor, memory, cache_hierarchy, release, platform):
+    def __init__(self, clk_freq, processor, local_memory, memory_over_cxl, cache_hierarchy, release, platform):
         super().__init__(
             clk_freq=clk_freq,
             processor=processor,
-            memory=memory,
+            memory=local_memory,
             cache_hierarchy=cache_hierarchy,
             release=release,
             platform=platform,
+            memory_over_cxl=memory_over_cxl,
         )
 
     @overrides(ArmBoard)
     def get_default_kernel_args(self):
+        local_memory_size = self.memory.get_size()
+        cxl_memory_size = 0
+        if self._has_cxl_memory:
+            cxl_memory_size = self.memory_over_cxl.get_size()
+        total_memory_size = local_memory_size + cxl_memory_size
         # The default kernel string is taken from the devices.py file.
         return [
             "console=ttyAMA0",
@@ -216,8 +264,10 @@ class PickleArmBoard(ArmBoard):
             "root=/dev/vda1",
             "disk_device=/dev/vda1",
             "rw",
-            f"mem={self.get_memory().get_size()}",
+            f"mem={total_memory_size}",
             "init=/home/ubuntu/gem5-init.sh",
+            #"earlycon=pl011,0x1c090000",
+            #"loglevel=8",
         ]
 
     @overrides(ArmBoard)
@@ -245,6 +295,7 @@ class PickleArmBoard(ArmBoard):
         ]
         self.pickle_device_prefetchers = [
             PicklePrefetcher(
+                cxl_memory_awareness_enabled=False,
                 software_hint_prefetch_distance=1,
                 prefetch_distance_offset_from_software_hint=0,
                 num_cores=len(all_cores),
@@ -282,13 +333,19 @@ class PickleArmBoard(ArmBoard):
     @overrides(ArmBoard)
     def _post_instantiate(self):
         super()._post_instantiate()
+        for mem_ctrl in self.memory.mem_ctrl:
+            mem_ctrl.enableActiveDataTracker()
+        if self._has_cxl_memory:
+            for mem_ctrl in self.memory_over_cxl.mem_ctrl:
+                mem_ctrl.enableActiveDataTracker()
         self.cache_hierarchy.post_instantiate()
 
 
 board = PickleArmBoard(
     clk_freq="4GHz",
     processor=processor,
-    memory=memory,
+    local_memory=local_memory,
+    memory_over_cxl=cxl_memory,
     cache_hierarchy=mesh_cache,
     release=ArmDefaultRelease.for_kvm(),
     platform=VExpress_GEM5_V1(),
@@ -296,7 +353,14 @@ board = PickleArmBoard(
 board.compression_type = CompressionType("ZSTD")
 board.checkpoint_mem_checksum = True
 
-command_prefix = ""
+if with_cxl_mem:
+    command_prefix = f"""
+    echo {local_allocation_weight} > /sys/kernel/mm/mempolicy/weighted_interleave/node0;
+    echo {cxl_allocation_weight} > /sys/kernel/mm/mempolicy/weighted_interleave/node1;
+    /home/ubuntu/numactl/numactl --weighted-interleave=0,1 """
+else:
+    command_prefix = ""
+
 if application == "is":
     command = f"{command_prefix} /home/ubuntu/NPB/NPB3.4-OMP/bin/{application}.{workload_class}.x.sampling.m5.pdev {starting_iter} {num_warmup_iters}"
 elif application == "cg":
@@ -307,8 +371,8 @@ else:
     raise UnimplementedError(f"Application {application} is not implemented")
 
 board.set_kernel_disk_workload(
-    kernel=CustomResource("/workdir/ARTIFACTS/linux-6.6.71/vmlinux"),
-    disk_image=CustomDiskImageResource("/workdir/ARTIFACTS/arm64.img.v12"),
+    kernel=CustomResource("/workdir/ARTIFACTS/linux-6.12.112/vmlinux"),
+    disk_image=CustomDiskImageResource("/workdir/ARTIFACTS/arm64.img.v15"),
     #bootloader=obtain_resource("arm64-bootloader", resource_version="1.0.0"),
     bootloader=CustomResource("/workdir/.cache/gem5/arm64-bootloader"),
     readfile_contents=command,
@@ -354,6 +418,8 @@ simulator.run()
 
 checkpoint_name = f"{application}-{workload_class}"
 checkpoint_name += f"-mesh_{mesh}"
+if with_cxl_mem:
+    checkpoint_name += f"-cxl_mem-allocation_ratio_{local_allocation_weight}_{cxl_allocation_weight}"
 checkpoint_name += f"-sampling_site_{sampling_site}"
 if application in {"is", "cg"}:
     checkpoint_name += f"-starting_iter_{starting_iter}"
