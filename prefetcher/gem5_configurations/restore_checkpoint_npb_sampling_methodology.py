@@ -635,6 +635,10 @@ checkpoint_name = f"{application}-{workload_class}"
 checkpoint_name += f"-mesh_{mesh}"
 if with_cxl_mem:
     checkpoint_name += f"-cxl_mem-allocation_ratio_{local_allocation_weight}_{cxl_allocation_weight}"
+    if cxl_memory_channels > 1:
+        checkpoint_name += f"-cxl_multi_memory_channels"
+    else:
+        checkpoint_name += f"-cxl_single_memory_channel"
 checkpoint_name += f"-sampling_site_{sampling_site}"
 if application in {"is", "cg"}:
     checkpoint_name += f"-starting_iter_{starting_iter}"
@@ -644,7 +648,10 @@ elif application == "ua":
     checkpoint_name += f"-cg_iter_{cg_iter}"
     checkpoint_name += f"-starting_element_{starting_element}"
     checkpoint_name += f"-num_warmup_elements_{num_warmup_elements}"
-checkpoint_path = Path(f"/workdir/LOCAL_ARTIFACTS/checkpoints/{checkpoint_name}")
+if application in {"is", "cg"}:
+    checkpoint_path = Path(f"/workdir/LOCAL_ARTIFACTS/checkpoints/{checkpoint_name}")
+else:
+    checkpoint_path = Path(f"/workdir/ARTIFACTS/checkpoints/{checkpoint_name}")
 board.set_kernel_disk_workload(
     kernel=CustomResource("/workdir/ARTIFACTS/vmlinux-6.12.112"),
     disk_image=CustomDiskImageResource(f"/workdir/ARTIFACTS/arm64.img.v15"),
