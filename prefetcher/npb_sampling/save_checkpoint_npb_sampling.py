@@ -19,6 +19,8 @@ OUTPUT_FOLDER = "/workdir/ARTIFACTS/results_v8/"
 
 WITH_CXL_MEM = ["True", "False"]
 LOCAL_CXL_ALLOCATION_RATIOS = ["2:1", "1:1", "3:1", "1:2"]
+#CXL_MULTI_MEMORY_CHANNELS = ["True", "False"]
+CXL_MULTI_MEMORY_CHANNELS = ["True"]
 
 GEM5_BINARY = "/workdir/gem5/build/ARM/gem5.opt"
 CONFIG_SCRIPT = (
@@ -47,33 +49,37 @@ def build_jobs():
             for with_cxl_mem in WITH_CXL_MEM:
                 if not with_cxl_mem:
                     considering_ratios = ['invalid']
+                    considering_cxl_multi_memory_channels = ['True']
                 else:
                     considering_ratios = LOCAL_CXL_ALLOCATION_RATIOS
-                for ratio in considering_ratios:
-                    for site in sampling_sites_for(application):
-                        for point in range(1, num_sampling_points + 1):
-                            outdir = os.path.join(
-                                OUTPUT_FOLDER,
-                                f"{application}-{workload_class}-mesh_{mesh}-with_cxl_mem_{with_cxl_mem}-local_cxl_allocation_ratio_{ratio}-"
-                                f"sampling_site_{site}-sampling_point_{point}-checkpoint",
-                            )
-                            cmd = [
-                                GEM5_BINARY, "-re",
-                                "--outdir", outdir,
-                                CONFIG_SCRIPT,
-                                "--application", application,
-                                "--workload_class", workload_class,
-                                "--mesh", mesh,
-                                "--with_cxl_mem", str(with_cxl_mem),
-                                "--local_cxl_allocation_ratio", ratio,
-                                "--sampling_site", site,
-                                "--sampling_point", str(point),
-                            ]
-                            label = (
-                                f"{application}-{workload_class}-mesh_{mesh}-with_cxl_mem_{with_cxl_mem}-local_cxl_allocation_ratio_{ratio}-"
-                                f"sampling_site_{site}-sampling_point_{point}-checkpoint"
-                            )
-                            jobs.append((label, cmd))
+                    considering_cxl_multi_memory_channels = CXL_MULTI_MEMORY_CHANNELS
+                for cxl_multi_memory_channels in considering_cxl_multi_memory_channels:
+                    for ratio in considering_ratios:
+                        for site in sampling_sites_for(application):
+                            for point in range(1, num_sampling_points + 1):
+                                outdir = os.path.join(
+                                    OUTPUT_FOLDER,
+                                    f"{application}-{workload_class}-mesh_{mesh}-with_cxl_mem_{with_cxl_mem}-local_cxl_allocation_ratio_{ratio}"
+                                    f"-cxl_multi_memory_channels_{cxl_multi_memory_channels}-sampling_site_{site}-sampling_point_{point}-checkpoint",
+                                )
+                                cmd = [
+                                    GEM5_BINARY, "-re",
+                                    "--outdir", outdir,
+                                    CONFIG_SCRIPT,
+                                    "--application", application,
+                                    "--workload_class", workload_class,
+                                    "--mesh", mesh,
+                                    "--with_cxl_mem", str(with_cxl_mem),
+                                    "--local_cxl_allocation_ratio", ratio,
+                                    "--cxl_multi_memory_channels", cxl_multi_memory_channels,
+                                    "--sampling_site", site,
+                                    "--sampling_point", str(point),
+                                ]
+                                label = (
+                                    f"{application}-{workload_class}-mesh_{mesh}-with_cxl_mem_{with_cxl_mem}-local_cxl_allocation_ratio_{ratio}"
+                                    f"--cxl_multi_memory_channels_{cxl_multi_memory_channels}-sampling_site_{site}-sampling_point_{point}-checkpoint"
+                                )
+                                jobs.append((label, cmd))
     return jobs
 
 

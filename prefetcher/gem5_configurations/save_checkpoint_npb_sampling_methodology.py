@@ -58,6 +58,12 @@ parser.add_argument("--workload_class", type=str, required=True)
 parser.add_argument("--mesh", type=int, required=True, choices={8, 10})
 parser.add_argument("--with_cxl_mem", type=str, required=True, choices={"True", "False"})
 parser.add_argument("--local_cxl_allocation_ratio", type=str, required=False, default="invalid")
+parser.add_argument("--cxl_multi_memory_channels", type=str, required=False, default="True", choices={"True", "False"},
+                    help="Whether to use multiple memory channels for CXL memory. If False, only one channel will be used, "
+                         "and the checkpoint can't be restored with more than 1 CXL memory channel. If True, the checkpoint "
+                         "can be restored with more than 1 channel. This is neccessary because of the way gem5 treating a vector "
+                         "with 1 element as a scalar, which will cause the checkpoint to be restored incorrectly if we take a "
+                         "checkpoint with 1 CXL memory channel and restore it with more than 1 CXL memory channel.")
 parser.add_argument("--sampling_site", type=int, required=True)
 parser.add_argument("--sampling_point", type=int, required=True)
 args = parser.parse_args()
@@ -78,6 +84,13 @@ if with_cxl_mem:
 else:
     local_allocation_weight = None
     cxl_allocation_weight = None
+
+cxl_multi_memory_channels = args.cxl_multi_memory_channels == "True"
+if cxl_multi_memory_channels:
+    cxl_memory_channels = 2 # the checkpoint can be restored with >= 2 CXL memory channels
+else:
+    cxl_memory_channels = 1
+
 
 sampling_site = args.sampling_site
 sampling_point = args.sampling_point
@@ -222,7 +235,7 @@ local_memory = ChanneledMemory(
 if with_cxl_mem:
     cxl_memory = ChanneledMemory(
         dram_interface_class=DDR4_2400_8x8,
-        num_channels=1,
+        num_channels=cxl_memory_channels,
         interleaving_size=64,
         size=cxl_memory_size,
     )
@@ -420,6 +433,10 @@ checkpoint_name = f"{application}-{workload_class}"
 checkpoint_name += f"-mesh_{mesh}"
 if with_cxl_mem:
     checkpoint_name += f"-cxl_mem-allocation_ratio_{local_allocation_weight}_{cxl_allocation_weight}"
+    if cxl_multi_memory_channels:
+        checkpoint_name += f"-cxl_multi_memory_channels"
+    else:
+        checkpoint_name += f"-cxl_single_memory_channel"
 checkpoint_name += f"-sampling_site_{sampling_site}"
 if application in {"is", "cg"}:
     checkpoint_name += f"-starting_iter_{starting_iter}"
