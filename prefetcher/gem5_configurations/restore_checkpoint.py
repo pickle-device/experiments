@@ -69,6 +69,7 @@ parser.add_argument("--application", type=str, required=True, choices={"bc", "bf
 parser.add_argument("--graph_name", type=str, required=True)
 parser.add_argument("--with_cxl_mem", type=str, required=True, choices={"True", "False"})
 parser.add_argument("--enable_pdev", type=str, required=True, choices={"True", "False"})
+parser.add_argument("--use_pdev_as_maple", type=str, required=True, choices={"True", "False"})
 parser.add_argument("--pickle_cache_size", type=str, required=True, help="Prefetcher cache size, e.g., 4KiB")
 parser.add_argument("--prefetch_distance", type=int, required=True)
 parser.add_argument("--prefetch_mode", type=str, required=True, choices=list(prefetch_mode_map.keys()))
@@ -126,6 +127,8 @@ else:
     local_allocation_weight = None
     cxl_allocation_weight = None
 enable_pdev = args.enable_pdev == "True"
+use_pdev_as_maple = args.use_pdev_as_maple == "True"
+
 pickle_cache_size = args.pickle_cache_size
 prefetch_distance = args.prefetch_distance
 prefetch_mode = prefetch_mode_map[args.prefetch_mode]
@@ -138,7 +141,7 @@ if private_cache_prefetcher == "dmp_with_page_walk":
     enable_core_mmu_ptw_for_prefetches = True
 offset_from_pf_hint = args.offset_from_pf_hint
 prefetch_drop_distance = args.prefetch_drop_distance
-delegate_last_layer_prefetch = args.delegate_last_layer_prefetch
+delegate_last_layer_prefetch = args.delegate_last_layer_prefetch == "True"
 concurrent_work_item_capacity = args.concurrent_work_item_capacity
 pdev_num_tbes = args.pdev_num_tbes
 llc_delegation_timeout = args.llc_delegation_timeout
@@ -155,12 +158,28 @@ prefetch_scheduling_policy = {
 }[args.prefetch_scheduling_policy]
 mesh = args.mesh
 
+if use_pdev_as_maple:
+    assert enable_pdev == True, "When use_pdev_as_maple is True, enable_pdev must be True"
+    assert pickle_cache_size == "2KiB", "When use_pdev_as_maple is True, pickle_cache_size must be 2KiB"
+    assert offset_from_pf_hint == 0, "When use_pdev_as_maple is True, offset_from_pf_hint must be 0"
+    assert prefetch_drop_distance == 0, "When use_pdev_as_maple is True, prefetch_drop_distance must be 0"
+    assert delegate_last_layer_prefetch == True, "When use_pdev_as_maple is True, delegate_last_layer_prefetch must be True"
+    assert concurrent_work_item_capacity == 64, "When use_pdev_as_maple is True, concurrent_work_item_capacity must be 64"
+    assert pdev_num_tbes == 64, "When use_pdev_as_maple is True, pdev_num_tbes must be 64"
+    assert llc_delegation_timeout == 1000000, "When use_pdev_as_maple is True, llc_delegation_timeout must be 1000000"
+    assert sssp_threshold_optimization_enabled == False, "When use_pdev_as_maple is True, sssp_threshold_optimization_enabled must be False"
+    assert bc_depth_optimization_enabled == False, "When use_pdev_as_maple is True, bc_depth_optimization_enabled must be False"
+    assert bc_depth_prefetch_to_both_llc_and_pickle_enabled == False, "When use_pdev_as_maple is True, bc_depth_prefetch_to_both_llc_and_pickle_enabled must be False"
+    assert ua_cbc_optimization_enabled == False, "When use_pdev_as_maple is True, ua_cbc_optimization_enabled must be False"
+    assert functional_pickle_mmu == False, "When use_pdev_as_maple is True, functional_pickle_mmu must be False"
+
 print(f"Mesh: PrebuiltMesh{mesh}")
 print(f"CXL memory: {with_cxl_mem}, CXL link latency in cycles: {cxl_link_latency_in_cycles}, Local:CXL allocation ratio: {local_allocation_weight}:{cxl_allocation_weight}")
 print(f"Application: {application}")
 print(f"Graph name: {graph_name}")
 print(f"Private Cache Prefetcher: {private_cache_prefetcher}, Enable core MMU page walk for prefetches: {enable_core_mmu_ptw_for_prefetches}")
 print(f"Enable Pickle Device: {enable_pdev}")
+print(f"Use PDEV as Maple: {use_pdev_as_maple}")
 print(f"Prefetch Distance: {prefetch_distance}, Offset: {offset_from_pf_hint}, Drop Distance: {prefetch_drop_distance}")
 print(f"Prefetch Mode: {prefetch_mode}, Chunk Size: {bulk_prefetch_chunk_size}, Prefetches Per Hint: {bulk_prefetch_num_prefetches_per_hint}")
 print(f"Delegate to LLC Agent: {delegate_last_layer_prefetch}")
@@ -181,7 +200,7 @@ num_cores = mesh_descriptor.get_num_core_tiles()
 
 fast_forward_cpu_type = CPUTypes.KVM
 
-def getNumPrefetchGeneratorsForApplication(application):
+def getNumPrefetchGeneratorsForPickle(application):
     return {
         "bc": 3,
         "bfs": 1,
@@ -189,6 +208,15 @@ def getNumPrefetchGeneratorsForApplication(application):
         "pr": 1,
         "sssp": 3,
         "tc": 1,
+    }[application]
+def getNumPrefetchGeneratorsForMaple(application):
+    return {
+        "bc": 6,
+        "bfs": 2,
+        "cc": 2,
+        "pr": 2,
+        "sssp": 4,
+        "tc": 2,
     }[application]
 
 mesh_cache = MeshCacheWithPickleDevice(
@@ -300,9 +328,13 @@ class PickleArmBoard(ArmBoard):
                 use_functional_mmu=functional_pickle_mmu,
             ) for i in range(num_PD_tiles)
         ]
-        num_generators = getNumPrefetchGeneratorsForApplication(application)
+        if use_pdev_as_maple:
+            num_generators = getNumPrefetchGeneratorsForMaple(application)
+        else:
+            num_generators = getNumPrefetchGeneratorsForPickle(application)
         self.pickle_device_prefetchers = [
             PicklePrefetcher(
+                use_as_maple=use_pdev_as_maple,
                 cxl_memory_awareness_enabled=True,
                 local_memory_physical_address_ranges=[],
                 cxl_memory_physical_address_ranges=[],
