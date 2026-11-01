@@ -498,6 +498,13 @@ class PickleArmBoard(ArmBoard):
         if self._has_cxl_memory:
             for mem_ctrl in self.memory_over_cxl.mem_ctrl:
                 mem_ctrl.disableActiveDataTracker()
+        all_cores = [core.core for core in self.processor.get_cores()]
+        for core in all_cores:
+            core.mmu.itb_walker.disableUniqueBlocksCount()
+            core.mmu.dtb_walker.disableUniqueBlocksCount()
+        for pickle_mmu in self.pickle_device_mmus:
+            pickle_mmu.itb_walker.disableUniqueBlocksCount()
+            pickle_mmu.dtb_walker.disableUniqueBlocksCount()
         self.cache_hierarchy.post_instantiate()
 
 
@@ -615,7 +622,7 @@ if with_cxl_mem:
 checkpoint_path = Path(f"/workdir/ARTIFACTS/checkpoints/{checkpoint_name}")
 board.set_kernel_disk_workload(
     kernel=CustomResource("/workdir/ARTIFACTS/vmlinux-6.12.112"),
-    disk_image=CustomDiskImageResource("/workdir/ARTIFACTS/arm64.img.v15"),
+    disk_image=CustomDiskImageResource("/workdir/ARTIFACTS/arm64.img.v16"),
     #bootloader=obtain_resource("arm64-bootloader", resource_version="1.0.0"),
     bootloader=CustomResource("/workdir/.cache/gem5/arm64-bootloader"),
     checkpoint=checkpoint_path,
@@ -645,6 +652,13 @@ def handle_exit_with_pdev():
     if with_cxl_mem:
         for mem_ctrl in board.memory_over_cxl.mem_ctrl:
             mem_ctrl.enableActiveDataTracker()
+    all_cores = [core.core for core in board.processor.get_cores()]
+    for core in all_cores:
+        core.mmu.itb_walker.enableUniqueBlocksCount()
+        core.mmu.dtb_walker.enableUniqueBlocksCount()
+    for pickle_mmu in board.pickle_device_mmus:
+        pickle_mmu.itb_walker.enableUniqueBlocksCount()
+        pickle_mmu.dtb_walker.enableUniqueBlocksCount()
     yield False
 
     print("[exit 4] ITER 2: *** ROI end ***")
@@ -667,6 +681,13 @@ def handle_exit_without_pdev():
     if with_cxl_mem:
         for mem_ctrl in board.memory_over_cxl.mem_ctrl:
             mem_ctrl.enableActiveDataTracker()
+    all_cores = [core.core for core in board.processor.get_cores()]
+    for core in all_cores:
+        core.mmu.itb_walker.enableUniqueBlocksCount()
+        core.mmu.dtb_walker.enableUniqueBlocksCount()
+    for pickle_mmu in board.pickle_device_mmus:
+        pickle_mmu.itb_walker.enableUniqueBlocksCount()
+        pickle_mmu.dtb_walker.enableUniqueBlocksCount()
     yield False
 
     print("[exit 4] ITER 2: *** ROI end ***")
